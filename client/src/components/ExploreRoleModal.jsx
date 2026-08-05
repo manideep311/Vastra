@@ -1,16 +1,23 @@
 import { useNavigate } from 'react-router-dom';
+import { useBuyerAuth } from '../context/BuyerAuthContext';
 import { ShoppingBagIcon, BuildingStorefrontIcon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 /**
- * Shown after the landing page's "Explore Textile" button is clicked.
- * Buyers go straight into the public marketplace, no login required.
- * Suppliers must authenticate first, so they're sent to the supplier login.
+ * Shown after the landing page's "Explore Textile" / "Sign In" buttons are
+ * clicked. Buyers go straight into the public marketplace, no login
+ * required. Suppliers must authenticate first, so they're sent to the
+ * supplier login.
  */
 function ExploreRoleModal({ onClose }) {
   const navigate = useNavigate();
+  const { isLoggedIn, logout } = useBuyerAuth();
 
   const chooseBuyer = () => {
-    // Guest buyer — no login required, just remember the chosen role.
+    // "I'm a Buyer" here means guest browsing, not an authenticated
+    // session — if a stale/previous buyer session is still sitting in
+    // localStorage, clear it so the navbar doesn't show as logged in
+    // (with email/logout) when the person never actually signed in.
+    if (isLoggedIn) logout();
     localStorage.setItem('currentRole', 'buyer');
     onClose();
     navigate('/home');
