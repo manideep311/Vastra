@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getBuyerProfile } from '../../services/buyerService';
 import { getMyOrders } from '../../services/orderService';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
-import { ShoppingBagIcon, ClockIcon, UserCircleIcon, ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
+import { ShoppingBagIcon, ClockIcon, UserCircleIcon, ClipboardDocumentListIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 const STATUS_COLORS = {
   pending: 'bg-amber-50 text-amber-700',
@@ -14,7 +14,8 @@ const STATUS_COLORS = {
 };
 
 function DashboardPage() {
-  const { user } = useBuyerAuth();
+  const { user, logout } = useBuyerAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
 
@@ -23,12 +24,26 @@ function DashboardPage() {
     getMyOrders().then((data) => setOrders(data.orders));
   }, []);
 
+  const handleLogout = () => {
+    logout();
+    navigate('/home');
+  };
+
   const activeOrders = orders.filter((o) => o.status !== 'completed').length;
   const recentOrders = orders.slice(0, 5);
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-bold text-slate-900 mb-6">Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="font-display text-2xl font-bold text-slate-900">Dashboard</h1>
+        <button
+          onClick={handleLogout}
+          className="md:hidden flex items-center gap-1.5 text-sm bg-emerald-950 text-white px-4 py-2 rounded-full hover:bg-emerald-900 transition-all duration-200 hover:scale-105 active:scale-95"
+        >
+          <ArrowRightOnRectangleIcon className="w-4 h-4" />
+          Logout
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">

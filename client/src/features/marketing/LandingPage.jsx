@@ -116,7 +116,7 @@ function LandingPage() {
 
             <div className="hidden md:flex items-center gap-3">
               <Link
-                to="/register"
+                to="/register?role=supplier"
                 className="text-sm font-medium text-white border border-white/40 px-5 py-2 rounded-full hover:bg-white/10 transition-colors"
               >
                 Join as Supplier
@@ -144,7 +144,7 @@ function LandingPage() {
                 </a>
               ))}
               <div className="flex gap-3 mt-2">
-                <Link to="/register" className="flex-1 text-center text-sm font-medium text-white border border-white/40 px-4 py-2 rounded-full">
+                <Link to="/register?role=supplier" className="flex-1 text-center text-sm font-medium text-white border border-white/40 px-4 py-2 rounded-full">
                   Join as Supplier
                 </Link>
                 <button
@@ -251,7 +251,7 @@ function LandingPage() {
               securely — no middlemen, no guesswork.
             </p>
             <Link
-              to="/register"
+              to="/register?role=supplier"
               className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 font-semibold px-6 py-3 rounded-full hover:bg-amber-300 transition-colors"
             >
               Join as Supplier

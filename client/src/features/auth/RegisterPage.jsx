@@ -1,13 +1,18 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
 import { useSupplierAuth } from '../../context/SupplierAuthContext';
 import { SparklesIcon, ShieldCheckIcon, TruckIcon, GlobeAltIcon, BuildingStorefrontIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
 
 function RegisterPage() {
+  const [searchParams] = useSearchParams();
+  // Arriving via a role-specific entry point (e.g. "Join as Supplier") locks
+  // the form to that role — no toggle, no accidental buyer signup.
+  const lockedRole = ['buyer', 'supplier'].includes(searchParams.get('role')) ? searchParams.get('role') : null;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('buyer');
+  const [role, setRole] = useState(lockedRole || 'buyer');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { registerUser: registerBuyer } = useBuyerAuth();
@@ -84,10 +89,18 @@ function RegisterPage() {
 
           <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">
             <SparklesIcon className="w-3.5 h-3.5" />
-            Get started
+            {lockedRole === 'supplier' ? 'Supplier sign-up' : lockedRole === 'buyer' ? 'Buyer sign-up' : 'Get started'}
           </span>
-          <h1 className="font-display text-3xl font-extrabold text-slate-900">Create your account</h1>
-          <p className="text-slate-500 text-sm mt-2">Set up your marketplace profile in a minute.</p>
+          <h1 className="font-display text-3xl font-extrabold text-slate-900">
+            {lockedRole === 'supplier' ? 'Create your supplier account' : lockedRole === 'buyer' ? 'Create your buyer account' : 'Create your account'}
+          </h1>
+          <p className="text-slate-500 text-sm mt-2">
+            {lockedRole === 'supplier'
+              ? 'List your fabrics and start selling to verified buyers.'
+              : lockedRole === 'buyer'
+              ? 'Start sourcing premium fabrics from verified suppliers.'
+              : 'Set up your marketplace profile in a minute.'}
+          </p>
 
           {error && (
             <p className="text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mt-6">{error}</p>
@@ -119,31 +132,48 @@ function RegisterPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">I am a...</label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  type="button"
-                  onClick={() => setRole('buyer')}
-                  className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
-                    role === 'buyer' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <ShoppingBagIcon className={`w-6 h-6 ${role === 'buyer' ? 'text-emerald-700' : 'text-slate-400'}`} />
-                  <span className={`text-sm font-semibold ${role === 'buyer' ? 'text-emerald-800' : 'text-slate-600'}`}>Buyer</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRole('supplier')}
-                  className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
-                    role === 'supplier' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300'
-                  }`}
-                >
-                  <BuildingStorefrontIcon className={`w-6 h-6 ${role === 'supplier' ? 'text-amber-600' : 'text-slate-400'}`} />
-                  <span className={`text-sm font-semibold ${role === 'supplier' ? 'text-amber-700' : 'text-slate-600'}`}>Supplier</span>
-                </button>
+            {lockedRole ? (
+              <div
+                className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-4 ${
+                  lockedRole === 'supplier' ? 'border-amber-500 bg-amber-50' : 'border-emerald-700 bg-emerald-50'
+                }`}
+              >
+                {lockedRole === 'supplier' ? (
+                  <BuildingStorefrontIcon className="w-6 h-6 text-amber-600" />
+                ) : (
+                  <ShoppingBagIcon className="w-6 h-6 text-emerald-700" />
+                )}
+                <span className={`text-sm font-semibold ${lockedRole === 'supplier' ? 'text-amber-700' : 'text-emerald-800'}`}>
+                  Registering as a {lockedRole === 'supplier' ? 'Supplier' : 'Buyer'}
+                </span>
               </div>
-            </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">I am a...</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('buyer')}
+                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
+                      role === 'buyer' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300'
+                    }`}
+                  >
+                    <ShoppingBagIcon className={`w-6 h-6 ${role === 'buyer' ? 'text-emerald-700' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-semibold ${role === 'buyer' ? 'text-emerald-800' : 'text-slate-600'}`}>Buyer</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('supplier')}
+                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
+                      role === 'supplier' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300'
+                    }`}
+                  >
+                    <BuildingStorefrontIcon className={`w-6 h-6 ${role === 'supplier' ? 'text-amber-600' : 'text-slate-400'}`} />
+                    <span className={`text-sm font-semibold ${role === 'supplier' ? 'text-amber-700' : 'text-slate-600'}`}>Supplier</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <button
