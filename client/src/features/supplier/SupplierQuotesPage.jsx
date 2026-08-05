@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { getSupplierQuotes, respondToQuote, declineQuote } from '../../services/quoteService';
-import { suggestQuote } from '../../services/aiService';
 import { getImageUrl } from '../../utils/config';
-import { DocumentTextIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
 
 const STATUS_COLORS = {
   pending: 'bg-amber-50 text-amber-700',
@@ -17,7 +16,6 @@ function SupplierQuotesPage() {
   const [loading, setLoading] = useState(true);
   const [formState, setFormState] = useState({}); // { [quoteId]: { quotedPrice, quotedLeadTime, supplierMessage } }
   const [busyId, setBusyId] = useState(null);
-  const [aiLoadingId, setAiLoadingId] = useState(null);
 
   useEffect(() => {
     fetchQuotes();
@@ -50,29 +48,6 @@ function SupplierQuotesPage() {
       fetchQuotes();
     } finally {
       setBusyId(null);
-    }
-  };
-
-  const handleAiSuggest = async (quote) => {
-    setAiLoadingId(quote._id);
-    try {
-      const result = await suggestQuote({
-        productId: quote.productId?._id,
-        requestedQuantity: quote.requestedQuantity,
-        targetPrice: quote.targetPrice,
-      });
-      setFormState((prev) => ({
-        ...prev,
-        [quote._id]: {
-          ...prev[quote._id],
-          quotedPrice: result.suggestedPrice ?? prev[quote._id]?.quotedPrice ?? '',
-          quotedLeadTime: result.suggestedLeadTime ?? prev[quote._id]?.quotedLeadTime ?? '',
-        },
-      }));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setAiLoadingId(null);
     }
   };
 
@@ -127,17 +102,6 @@ function SupplierQuotesPage() {
 
               {quote.status === 'pending' && (
                 <div className="mt-4 bg-amber-50/60 border border-amber-100 rounded-xl p-4 space-y-3">
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => handleAiSuggest(quote)}
-                      disabled={aiLoadingId === quote._id}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-white border border-amber-200 px-3 py-1.5 rounded-full hover:bg-amber-100 transition-colors disabled:opacity-50"
-                    >
-                      <SparklesIcon className="w-3.5 h-3.5" />
-                      {aiLoadingId === quote._id ? 'Thinking...' : 'AI Suggest Price & Lead Time'}
-                    </button>
-                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <input
                       type="number"
