@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap');
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #fdfbf8;
+}
+
+.font-display {
+  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+}
+
+/* Elegant serif for the VASTRA wordmark and large hero headlines */
+.font-serif-display {
+  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+}
+
+::selection {
+  background-color: #a7f3d0;
+  color: #064e3b;
+}
+
+/* Hero: drifting fabric swatches (replaces flat blur-orb background) */
+.fabric-swatch {
+  position: absolute;
+  border-radius: 1.25rem;
+  will-change: transform;
+  box-shadow: 0 8px 30px -8px rgba(0, 0, 0, 0.35);
+}
+
+@keyframes fabricDriftA {
+  0% { transform: translate3d(-6%, -10%, 0) rotate(-10deg); }
+  100% { transform: translate3d(9%, 12%, 0) rotate(4deg); }
+}
+@keyframes fabricDriftB {
+  0% { transform: translate3d(8%, -8%, 0) rotate(8deg); }
+  100% { transform: translate3d(-10%, 11%, 0) rotate(-6deg); }
+}
+@keyframes fabricDriftC {
+  0% { transform: translate3d(-9%, 9%, 0) rotate(3deg); }
+  100% { transform: translate3d(10%, -10%, 0) rotate(-9deg); }
+}
+@keyframes fabricDriftD {
+  0% { transform: translate3d(6%, 10%, 0) rotate(-4deg); }
+  100% { transform: translate3d(-8%, -9%, 0) rotate(10deg); }
+}
+
+.fabric-anim-a { animation: fabricDriftA 16s ease-in-out infinite alternate; }
+.fabric-anim-b { animation: fabricDriftB 20s ease-in-out infinite alternate; }
+.fabric-anim-c { animation: fabricDriftC 24s ease-in-out infinite alternate; }
+.fabric-anim-d { animation: fabricDriftD 18s ease-in-out infinite alternate; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fabric-anim-a, .fabric-anim-b, .fabric-anim-c, .fabric-anim-d {
+    animation: none;
+  }
+}
