@@ -2,11 +2,21 @@ import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { chatWithAssistant } from '../services/aiService';
 import { getImageUrl } from '../utils/config';
+import assistantIcon from '../assets/vastra-assistant-icon.png';
+
+// Shown as clickable chips until the buyer sends their first message — gives
+// people something concrete to tap instead of staring at an empty input.
+const SUGGESTED_PROMPTS = [
+  'Recommend fabrics for shirts',
+  'Compare silk vs cotton',
+  "What's good for upholstery?",
+  'Show me breathable summer fabrics',
+];
 
 function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: "Hi! I'm your marketplace assistant. Ask me about fabrics, get recommendations, or compare products.", products: [] },
+    { role: 'assistant', content: "Hi! I'm Vastra Assistant. Ask me about fabrics, get recommendations, or compare products.", products: [] },
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,9 +61,8 @@ function ChatWidget() {
     }
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    const trimmed = input.trim();
+  const sendMessage = async (text) => {
+    const trimmed = text.trim();
     if (!trimmed || loading) return;
 
     const newHistory = [...messages.map((m) => ({ role: m.role, content: m.content }))];
@@ -71,14 +80,27 @@ function ChatWidget() {
     }
   };
 
+  const handleSend = (e) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  const handleSuggestionClick = (prompt) => {
+    sendMessage(prompt);
+  };
+
   return (
     <>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-24 md:bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-emerald-700 to-emerald-800 text-white rounded-full shadow-xl shadow-emerald-700/30 flex items-center justify-center text-2xl z-50 transition-all duration-300 hover:scale-110 active:scale-95"
+        className="fixed bottom-24 md:bottom-6 right-6 w-14 h-14 rounded-full shadow-xl shadow-emerald-700/30 flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 active:scale-95 overflow-hidden bg-gradient-to-br from-emerald-700 to-emerald-800"
         aria-label="Toggle AI assistant"
       >
-        {isOpen ? '✕' : '💬'}
+        {isOpen ? (
+          <span className="text-2xl text-white">✕</span>
+        ) : (
+          <img src={assistantIcon} alt="" className="w-full h-full object-cover" />
+        )}
       </button>
 
       <div
@@ -87,8 +109,8 @@ function ChatWidget() {
         }`}
       >
         <div className="bg-gradient-to-r from-emerald-950 to-emerald-950 text-white px-4 py-3 rounded-t-2xl flex items-center gap-2">
-          <span className="text-lg">✨</span>
-          <span className="font-display font-semibold">Marketplace Assistant</span>
+          <img src={assistantIcon} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+          <span className="font-display font-semibold">Vastra Assistant</span>
         </div>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -129,6 +151,20 @@ function ChatWidget() {
               </div>
             </div>
           ))}
+          {messages.length === 1 && !loading && (
+            <div className="flex flex-wrap gap-1.5">
+              {SUGGESTED_PROMPTS.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => handleSuggestionClick(prompt)}
+                  className="text-xs font-medium text-emerald-800 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full hover:bg-emerald-100 transition-colors"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          )}
           {loading && (
             <div className="flex justify-start">
               <div className="bg-slate-100 px-3 py-2 rounded-2xl rounded-bl-sm">

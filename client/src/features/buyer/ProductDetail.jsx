@@ -525,7 +525,7 @@ function ProductDetail() {
       </div>
 
       {toast && (
-        <div className="fixed bottom-40 md:bottom-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50">{toast}</div>
+        <div className="fixed bottom-40 md:bottom-6 left-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50">{toast}</div>
       )}
     </div>
   );

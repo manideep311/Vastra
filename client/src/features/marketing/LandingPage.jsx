@@ -181,7 +181,7 @@ function LandingPage() {
             onClick={() => setExploreOpen(true)}
             className="group inline-flex items-center gap-3 bg-gradient-to-r from-amber-400 to-amber-300 text-emerald-950 font-bold text-lg px-10 py-4 rounded-full shadow-2xl shadow-amber-500/30 transition-all duration-200 hover:scale-105 hover:shadow-amber-400/40 active:scale-95 mb-14"
           >
-            Explore Website
+            Explore Textile
             <ArrowRightIcon className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
           </button>
 

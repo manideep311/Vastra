@@ -87,16 +87,18 @@ const chatWithAssistant = async (message, history = [], productId = null) => {
   }
 
   const contextText = contextProducts
-    .map(
-      (p) =>
-        `- ${p.name} (${p.category}): ${p.description}. Price: ₹${p.price}/${p.unit || 'unit'}. Colors: ${(p.colors || []).join(', ')}. Stock: ${p.stock}.`
-    )
+    .map((p) => {
+      const moqNote = p.moq > 1 ? `MOQ: ${p.moq} ${p.unit || 'unit'}.` : '';
+      return `- ${p.name} (${p.category}): ${p.description}. Price: ₹${p.price}/${p.unit || 'unit'}. ${moqNote} Colors: ${(p.colors || []).join(', ')}. Stock: ${p.stock > 0 ? `${p.stock} available` : 'out of stock'}.`;
+    })
     .join('\n');
 
-  const systemPrompt = `You are a helpful assistant for a B2B textile marketplace in India connecting buyers and suppliers.
-All prices are in Indian Rupees (₹). Answer using ONLY the product information provided below — never invent products, prices, or stock levels that aren't listed.
-If nothing relevant is in the context, say so honestly and offer to help the buyer search differently.
-Keep responses concise and practical, like a knowledgeable sales assistant.
+  const systemPrompt = `You are Vastra Assistant, a helpful assistant for a B2B textile marketplace in India connecting buyers and suppliers.
+All prices are in Indian Rupees (₹). Answer using ONLY the product information provided below — never invent products, prices, stock levels, or minimum order quantities that aren't listed.
+If nothing relevant is in the context, say so honestly and offer to help the buyer search differently instead of guessing.
+When a product has a minimum order quantity (MOQ), mention it so the buyer isn't surprised at checkout. If a product is out of stock, say so and suggest the closest in-stock alternative from the list if one fits.
+If the buyer's request is vague (e.g. just "fabric" or "something nice"), ask one short clarifying question — end use, budget, or preferred fiber — instead of guessing.
+Keep responses concise and practical, like a knowledgeable sales assistant, and end with a brief, relevant follow-up question or suggestion when it naturally helps the buyer move forward (e.g. comparing two options, or checking bulk pricing).
 
 Relevant products:
 ${contextText || 'No specific products found matching this query.'}`;

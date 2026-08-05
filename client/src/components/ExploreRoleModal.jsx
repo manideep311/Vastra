@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBagIcon, BuildingStorefrontIcon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 
 /**
- * Shown after the landing page's "Explore Website" button is clicked.
+ * Shown after the landing page's "Explore Textile" button is clicked.
  * Buyers go straight into the public marketplace, no login required.
  * Suppliers must authenticate first, so they're sent to the supplier login.
  */
