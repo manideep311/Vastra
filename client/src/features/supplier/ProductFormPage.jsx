@@ -33,6 +33,7 @@ function ProductFormPage() {
     tags: '',
   });
   const [imageFiles, setImageFiles] = useState([]);
+  const [imageLimitNotice, setImageLimitNotice] = useState('');
   const [existingImages, setExistingImages] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -64,12 +65,27 @@ function ProductFormPage() {
   }, [id]);
 
   const handleFileChange = (e) => {
-    const selected = Array.from(e.target.files).slice(0, 5);
-    setImageFiles(selected);
+    const incoming = Array.from(e.target.files);
+    setImageFiles((prev) => {
+      // Append to whatever's already picked (instead of replacing it), skip
+      // exact duplicates, and cap the combined total at 5.
+      const isDuplicate = (a, b) => a.name === b.name && a.size === b.size && a.lastModified === b.lastModified;
+      const merged = [...prev];
+      for (const file of incoming) {
+        if (merged.length >= 5) break;
+        if (!merged.some((f) => isDuplicate(f, file))) merged.push(file);
+      }
+      const wasTrimmed = merged.length < prev.length + incoming.length;
+      setImageLimitNotice(wasTrimmed ? 'Only 5 images allowed per product — extra selections were skipped.' : '');
+      return merged;
+    });
+    // Reset the input so picking the same file(s) again later still fires onChange.
+    e.target.value = '';
   };
 
   const removeSelectedFile = (index) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
+    setImageLimitNotice('');
   };
 
   const handleAiSuggest = async () => {
@@ -352,9 +368,14 @@ function ProductFormPage() {
               accept="image/*"
               multiple
               onChange={handleFileChange}
+              disabled={imageFiles.length >= 5}
               className="hidden"
             />
           </label>
+
+          {imageLimitNotice && (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-1.5 mt-2">{imageLimitNotice}</p>
+          )}
 
           {imageFiles.length > 0 && (
             <div className="flex gap-2 flex-wrap mt-3">
