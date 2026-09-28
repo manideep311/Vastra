@@ -1,83 +1,80 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRightIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/20/solid';
 import ExploreRoleModal from '../../components/ExploreRoleModal';
-import {
-  ShieldCheckIcon,
-  CubeIcon,
-  UsersIcon,
-  CheckBadgeIcon,
-  SparklesIcon,
-  LockClosedIcon,
-  GlobeAltIcon,
-  Bars3Icon,
-  XMarkIcon,
-  TruckIcon,
-  ArrowRightIcon,
-} from '@heroicons/react/24/outline';
+import Wordmark from '../../components/Wordmark';
+import Dialog from '../../components/ui/Dialog';
+import ProductImage from '../../components/ui/ProductImage';
 
-// Stable Wikimedia Commons "Special:FilePath" redirects — same real, freely
+// Stable Wikimedia Commons "Special:FilePath" redirects — the same freely
 // licensed fabric photography used to seed the product catalog.
-const wm = (filename, width = 1400) =>
-  `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${width}`;
+const wm = (filename, width = 800) => `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${width}`;
 
-const FABRIC_CATEGORIES = [
+const FABRICS = [
   {
     name: 'Cotton',
-    desc: 'Breathable poplins, twills & organic weaves',
-    img: wm('Blue Cotton Fabric Texture Free Creative Commons (6962342861).jpg'),
+    desc: 'Poplins, twills & organic weaves',
+    file: 'Blue Cotton Fabric Texture Free Creative Commons (6962342861).jpg',
     blurb:
       'A natural fibre spun from the cotton plant’s seed pod. Soft, breathable, and easy to dye, it’s the backbone of shirting, casualwear, and home textiles — from crisp poplin to heavier twill.',
   },
   {
     name: 'Silk',
-    desc: 'Pure mulberry silk & handloom brocade',
-    img: wm('Pink Woven Cotton Silk Fabric Texture Free Creative Commons (6962346249).jpg'),
+    desc: 'Mulberry silk & handloom brocade',
+    file: 'Pink Woven Cotton Silk Fabric Texture Free Creative Commons (6962346249).jpg',
     blurb:
       'Spun from the cocoon fibre of silkworms, silk is prized for its natural sheen, light weight, and smooth drape. Mulberry silk satin and handloom brocade with zari work are staples for bridal and eveningwear.',
   },
   {
     name: 'Wool',
     desc: 'Merino suiting & heritage tweed',
-    img: wm('Beige wool texture.jpg'),
+    file: 'Beige wool texture.jpg',
     blurb:
       'Shorn from sheep and spun into yarn, wool insulates while staying breathable. Fine merino gives suiting its smooth drape, while heavier tweed and coating fabrics are built for structure and warmth.',
   },
   {
     name: 'Denim',
-    desc: 'Stretch & raw selvedge, ring-spun',
-    img: wm('Jeansfabric (cropped).jpg'),
+    desc: 'Stretch & raw selvedge',
+    file: 'Jeansfabric (cropped).jpg',
     blurb:
       'A rugged cotton twill woven with an indigo warp and white weft, giving denim its signature fade. Comfort-stretch blends suit everyday wear, while raw selvedge denim is prized for character and durability.',
   },
   {
     name: 'Linen',
-    desc: 'European flax, breathable & textured',
-    img: wm('Linen, Texture (2242358989).jpg'),
+    desc: 'Flax, breathable & textured',
+    file: 'Linen, Texture (2242358989).jpg',
     blurb:
       'Woven from the flax plant, linen is one of the oldest textiles in the world. Its open, textured weave makes it exceptionally breathable — ideal for summer apparel and relaxed, loose-fit garments.',
   },
   {
     name: 'Velvet',
     desc: 'Plush pile for eveningwear & decor',
-    img: wm('Velour.jpg'),
-    swatch: 'from-emerald-800 via-emerald-900 to-emerald-950',
+    file: 'Velour.jpg',
     blurb:
       'Woven with a dense, cut pile that catches the light, velvet has a signature plush hand-feel. It’s a favourite for eveningwear, drapery, and upholstery wherever a rich, luxurious finish is called for.',
   },
 ];
 
-const TRUST_ITEMS = [
-  { icon: ShieldCheckIcon, label: 'Verified & Trusted' },
-  { icon: CheckBadgeIcon, label: 'Quality Assured' },
-  { icon: LockClosedIcon, label: 'Secure Payments' },
-  { icon: GlobeAltIcon, label: 'Global Shipping' },
+// What the product actually does — no invented numbers.
+const PROMISES = ['Minimum orders shown up front', 'Bulk price tiers', 'Quotes negotiated directly', 'Orders tracked to dispatch'];
+
+const BUYER_STEPS = [
+  { title: 'Compare suppliers', body: 'Search by fibre, weave or end use and compare price, MOQ, stock and lead time side by side.' },
+  { title: 'Order at the minimum — or negotiate', body: 'Add to cart at the supplier’s MOQ, or request a bulk quote for larger and custom runs.' },
+  { title: 'Track every order', body: 'Each supplier confirms, prepares and dispatches your order, and you’re notified at every step.' },
+];
+
+const SUPPLIER_FEATURES = [
+  { title: 'Listings with real specs', body: 'GSM, width, composition and roll length — the numbers buyers use to decide.' },
+  { title: 'Your MOQ, enforced', body: 'Buyers can’t check out below your minimum order or above your stock.' },
+  { title: 'Quote requests', body: 'Reply to bulk enquiries with price, lead time and how long the offer holds.' },
+  { title: 'Order pipeline', body: 'Accept, prepare and dispatch from one queue. Buyers are notified automatically.' },
 ];
 
 const NAV_LINKS = [
   { href: '#fabrics', label: 'Fabrics' },
-  { href: '#suppliers', label: 'Suppliers' },
-  { href: '#categories', label: 'Categories' },
-  { href: '#about', label: 'About Us' },
+  { href: '#how-it-works', label: 'How it works' },
+  { href: '#suppliers', label: 'For suppliers' },
 ];
 
 function LandingPage() {
@@ -86,66 +83,48 @@ function LandingPage() {
   const [exploreOpen, setExploreOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#fdfbf8]">
-      {/* Hero with the fabric-patchwork background */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: 'url(/hero-fabric-patchwork.jpg)' }}
-          />
-          {/* Legibility scrim */}
-          <div className="absolute inset-0 bg-gradient-to-b from-emerald-950/55 via-emerald-950/35 to-emerald-950/70" />
-        </div>
-
-        {/* Nav */}
+    <div className="min-h-screen bg-canvas">
+      {/* ---------------------------------------------------------------- Hero */}
+      <div className="relative overflow-hidden bg-brand-strong text-white">
         <header className="relative z-20">
-          <div className="max-w-7xl mx-auto px-6 lg:px-10 flex items-center justify-between h-20">
-            <Link to="/" className="flex flex-col leading-none text-white">
-              <span className="font-serif-display text-2xl md:text-3xl tracking-wide">VASTRA</span>
-              <span className="text-[11px] font-medium text-amber-200/90 tracking-wide mt-0.5">Where Tradition Meets Trade</span>
-            </Link>
-
-            <nav className="hidden md:flex items-center gap-8">
+          <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-5 lg:px-10">
+            <Wordmark to="/" tone="light" />
+            <nav aria-label="Sections" className="hidden items-center gap-8 md:flex">
               {NAV_LINKS.map((link) => (
-                <a key={link.href} href={link.href} className="text-white/90 text-sm font-medium hover:text-white transition-colors">
+                <a key={link.href} href={link.href} className="text-sm font-medium text-white/80 transition-colors hover:text-white">
                   {link.label}
                 </a>
               ))}
             </nav>
-
-            <div className="hidden md:flex items-center gap-3">
-              <Link
-                to="/register?role=supplier"
-                className="text-sm font-medium text-white border border-white/40 px-5 py-2 rounded-full hover:bg-white/10 transition-colors"
-              >
-                Join as Supplier
+            <div className="hidden items-center gap-2 md:flex">
+              <Link to="/register?role=supplier" className="btn btn-sm text-white/90 hover:bg-white/10 hover:text-white">
+                Join as supplier
               </Link>
-              <button
-                type="button"
-                onClick={() => setExploreOpen(true)}
-                className="flex items-center gap-1.5 text-sm font-semibold text-white bg-emerald-800 border border-emerald-700 px-5 py-2 rounded-full hover:bg-emerald-700 transition-colors"
-              >
-                <UsersIcon className="w-4 h-4" />
-                Sign In
+              <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-sm border border-white/30 text-white hover:bg-white/10">
+                Sign in
               </button>
             </div>
-
-            <button className="md:hidden text-white p-2" onClick={() => setMenuOpen((o) => !o)} aria-label="Toggle menu">
-              {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+            <button
+              type="button"
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10 md:hidden"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              aria-controls="landing-menu"
+            >
+              {menuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
             </button>
           </div>
-
           {menuOpen && (
-            <div className="md:hidden relative z-20 bg-emerald-950/95 backdrop-blur-md px-6 py-4 flex flex-col gap-3">
+            <div id="landing-menu" className="animate-fade-in border-t border-white/10 px-5 pb-5 md:hidden">
               {NAV_LINKS.map((link) => (
-                <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="text-white/90 text-sm font-medium py-1">
+                <a key={link.href} href={link.href} onClick={() => setMenuOpen(false)} className="block border-b border-white/10 py-3.5 text-[15px] font-medium text-white/90">
                   {link.label}
                 </a>
               ))}
-              <div className="flex gap-3 mt-2">
-                <Link to="/register?role=supplier" className="flex-1 text-center text-sm font-medium text-white border border-white/40 px-4 py-2 rounded-full">
-                  Join as Supplier
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Link to="/register?role=supplier" className="btn border border-white/30 text-white">
+                  Join as supplier
                 </Link>
                 <button
                   type="button"
@@ -153,225 +132,218 @@ function LandingPage() {
                     setMenuOpen(false);
                     setExploreOpen(true);
                   }}
-                  className="flex-1 text-center text-sm font-semibold text-white bg-emerald-800 px-4 py-2 rounded-full"
+                  className="btn bg-white text-ink"
                 >
-                  Sign In
+                  Sign in
                 </button>
               </div>
             </div>
           )}
         </header>
 
-        {/* Hero content */}
-        <div className="relative z-10 max-w-4xl mx-auto text-center px-6 pt-8 pb-24 md:pt-14 md:pb-32">
-          <span className="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-emerald-900 text-xs font-semibold px-4 py-2 rounded-full mb-8 shadow-sm">
-            <SparklesIcon className="w-3.5 h-3.5" />
-            Premium fabric sourcing, simplified
-          </span>
-
-          <h1 className="font-serif-display text-white text-4xl md:text-6xl font-bold leading-[1.15] mb-6">
-            Source fabrics directly<br className="hidden md:block" /> from <span className="text-emerald-300">verified suppliers</span>
-          </h1>
-          <p className="text-white/80 text-lg max-w-xl mx-auto mb-10">
-            Browse, compare, and order — all in one elegant marketplace.
-          </p>
-
-          <button
-            type="button"
-            onClick={() => setExploreOpen(true)}
-            className="group inline-flex items-center gap-3 bg-gradient-to-r from-amber-400 to-amber-300 text-emerald-950 font-bold text-lg px-10 py-4 rounded-full shadow-2xl shadow-amber-500/30 transition-all duration-200 hover:scale-105 hover:shadow-amber-400/40 active:scale-95 mb-14"
-          >
-            Explore Textile
-            <ArrowRightIcon className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1" />
-          </button>
-
-          <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto mb-16">
-            {[
-              { icon: ShieldCheckIcon, value: '350K+', label: 'Verified Suppliers' },
-              { icon: CubeIcon, value: '400K+', label: 'Products Listed' },
-              { icon: UsersIcon, value: '600K+', label: 'Trusted Buyers' },
-            ].map((stat) => (
-              <div key={stat.label} className="flex flex-col items-center">
-                <div className="w-11 h-11 rounded-full bg-white/90 flex items-center justify-center mb-2 shadow-sm">
-                  <stat.icon className="w-5 h-5 text-emerald-800" />
-                </div>
-                <p className="font-display text-xl md:text-2xl font-extrabold text-white">{stat.value}</p>
-                <p className="text-white/70 text-xs mt-0.5">{stat.label}</p>
-              </div>
-            ))}
+        <div className="relative z-10 mx-auto grid max-w-7xl items-center gap-12 px-5 pb-16 pt-8 lg:grid-cols-12 lg:gap-8 lg:px-10 lg:pb-24 lg:pt-12">
+          <div className="animate-fade-up lg:col-span-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/90">B2B textile marketplace · India</p>
+            <h1 className="mt-5 font-serif-display text-[2.75rem] font-semibold leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.25rem]">
+              Where tradition
+              <br />
+              meets <span className="italic text-amber-100">trade.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-base leading-relaxed text-emerald-50/80 sm:text-lg">
+              Source cotton, silk, linen and more directly from Indian mills and wholesalers — with clear minimum orders, bulk pricing and quotes built in.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                type="button"
+                onClick={() => setExploreOpen(true)}
+                className="group btn btn-lg h-14 bg-accent px-8 text-base text-ink shadow-[0_14px_36px_-14px_rgba(201,138,27,0.8)] hover:bg-[#d99a2b]"
+              >
+                Explore Textile
+                <ArrowRightIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
+              </button>
+              <Link to="/register?role=supplier" className="btn btn-lg h-14 text-white/90 hover:bg-white/10 hover:text-white">
+                List your fabrics
+              </Link>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 bg-black/20 backdrop-blur-md border border-white/10 rounded-full px-8 py-4 max-w-3xl mx-auto">
-            {TRUST_ITEMS.map((item) => (
-              <div key={item.label} className="flex items-center gap-2 text-white/85 text-sm font-medium">
-                <item.icon className="w-4 h-4 text-amber-300 flex-shrink-0" />
-                {item.label}
+          {/* Layered imagery: the patchwork hero with two swatches set against it */}
+          <div className="relative lg:col-span-6">
+            <div className="relative mx-auto aspect-[5/4] w-full max-w-xl lg:ml-auto">
+              <picture>
+                <source media="(min-width: 768px)" srcSet="/hero-fabric-patchwork.webp" type="image/webp" />
+                <source srcSet="/hero-fabric-patchwork-768.webp" type="image/webp" />
+                <img
+                  src="/hero-fabric-patchwork.jpg"
+                  alt="Patchwork of Indian textiles in indigo, madder and turmeric tones"
+                  width="1536"
+                  height="1024"
+                  fetchPriority="high"
+                  className="h-full w-full animate-fade-in rounded-[2rem] object-cover shadow-[0_40px_80px_-40px_rgba(0,0,0,0.8)]"
+                />
+              </picture>
+              <div className="absolute -bottom-6 -left-4 hidden w-36 rotate-[-4deg] animate-fade-up overflow-hidden rounded-2xl border-4 border-brand-strong shadow-xl sm:block lg:-left-10 lg:w-44 [animation-delay:150ms]">
+                <ProductImage src={wm(FABRICS[1].file, 400)} alt="" className="aspect-[4/5] w-full" />
               </div>
-            ))}
+              <div className="absolute -right-3 -top-5 hidden w-28 rotate-[5deg] animate-fade-up overflow-hidden rounded-2xl border-4 border-brand-strong shadow-xl sm:block lg:-right-6 lg:w-32 [animation-delay:250ms]">
+                <ProductImage src={wm(FABRICS[4].file, 400)} alt="" className="aspect-square w-full" />
+              </div>
+            </div>
           </div>
+        </div>
+
+        <div className="relative z-10 border-t border-white/10">
+          <ul className="mx-auto flex max-w-7xl flex-wrap justify-center gap-x-8 gap-y-2 px-5 py-5 text-sm text-emerald-50/75 lg:justify-between lg:px-10">
+            {PROMISES.map((item) => (
+              <li key={item} className="flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-accent" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
 
-      {/* Fabrics */}
-      <section id="fabrics" className="scroll-mt-24 max-w-7xl mx-auto px-6 lg:px-10 py-20">
-        <div className="text-center max-w-xl mx-auto mb-12">
-          <h2 className="font-serif-display text-3xl md:text-4xl font-bold text-slate-900 mb-3">Every fabric, one marketplace</h2>
-          <p className="text-slate-500">From everyday cottons to heirloom silks — sourced directly from the mills that make them.</p>
+      {/* -------------------------------------------------------------- Fabrics */}
+      <section id="fabrics" className="mx-auto max-w-7xl scroll-mt-6 px-5 py-20 lg:px-10 lg:py-28" aria-labelledby="fabrics-title">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-xl">
+            <p className="eyebrow">The catalog</p>
+            <h2 id="fabrics-title" className="mt-3 font-serif-display text-4xl font-semibold leading-tight text-ink md:text-5xl">
+              Every fibre, one marketplace.
+            </h2>
+          </div>
+          <p className="max-w-sm text-[15px] leading-relaxed text-muted">From everyday cottons to heirloom silks — listed by the mills and wholesalers who make and stock them.</p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
-          {FABRIC_CATEGORIES.map((cat) => (
-            <button
-              key={cat.name}
-              type="button"
-              onClick={() => setActiveFabric(cat)}
-              className="group relative rounded-2xl overflow-hidden aspect-[4/3] border border-slate-200/70 text-left"
-            >
-              {cat.img ? (
-                <img src={cat.img} alt={cat.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-              ) : (
-                <div className={`absolute inset-0 bg-gradient-to-br ${cat.swatch} transition-transform duration-500 group-hover:scale-105`} />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/85 via-emerald-950/10 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-4">
-                <p className="font-display font-bold text-white">{cat.name}</p>
-                <p className="text-white/70 text-xs mt-0.5 hidden md:block">{cat.desc}</p>
-              </div>
-            </button>
+
+        <ul className="mt-12 grid auto-rows-[11rem] grid-cols-2 gap-3 sm:auto-rows-[13rem] md:grid-cols-4 md:gap-4">
+          {FABRICS.map((fabric, i) => (
+            <li key={fabric.name} className={i === 0 ? 'col-span-2 row-span-2' : i === 3 ? 'md:col-span-2' : ''}>
+              <button
+                type="button"
+                onClick={() => setActiveFabric(fabric)}
+                className="group relative block h-full w-full overflow-hidden rounded-2xl text-left"
+                aria-label={`About ${fabric.name}`}
+              >
+                <ProductImage
+                  src={wm(fabric.file, i === 0 ? 1000 : 600)}
+                  alt=""
+                  className="h-full w-full"
+                  imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+                />
+                <span className="absolute inset-0 bg-gradient-to-t from-ink/80 via-ink/5 to-transparent" aria-hidden="true" />
+                <span className="absolute inset-x-0 bottom-0 p-4 md:p-5">
+                  <span className={`block font-serif-display font-semibold text-white ${i === 0 ? 'text-3xl' : 'text-xl'}`}>{fabric.name}</span>
+                  <span className="mt-0.5 hidden text-xs text-white/75 sm:block">{fabric.desc}</span>
+                </span>
+              </button>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
-      {/* Suppliers */}
-      <section id="suppliers" className="scroll-mt-24 bg-emerald-950 text-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-20 grid md:grid-cols-2 gap-12 items-center">
-          <div>
-            <h2 className="font-serif-display text-3xl md:text-4xl font-bold mb-4">Built for serious suppliers</h2>
-            <p className="text-emerald-200 mb-8 max-w-md">
-              List your fabrics in front of thousands of verified buyers, respond to RFQs with AI-assisted quoting, and get paid
-              securely — no middlemen, no guesswork.
-            </p>
-            <Link
-              to="/register?role=supplier"
-              className="inline-flex items-center gap-2 bg-amber-400 text-emerald-950 font-semibold px-6 py-3 rounded-full hover:bg-amber-300 transition-colors"
-            >
-              Join as Supplier
-              <ArrowRightIcon className="w-4 h-4" />
-            </Link>
+      {/* --------------------------------------------------------- How it works */}
+      <section id="how-it-works" className="scroll-mt-6 border-y border-line bg-surface" aria-labelledby="how-title">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-12 lg:px-10">
+          <div className="lg:col-span-4">
+            <p className="eyebrow">For buyers</p>
+            <h2 id="how-title" className="mt-3 font-serif-display text-4xl font-semibold leading-tight text-ink">
+              Sourcing, without the back-and-forth.
+            </h2>
+            <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-primary mt-8">
+              Start browsing <ArrowRightIcon className="h-4 w-4" />
+            </button>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { icon: ShieldCheckIcon, title: 'Verified badge', desc: 'Stand out with a trust badge buyers recognise.' },
-              { icon: TruckIcon, title: 'Reliable fulfillment', desc: 'MOQ & lead-time tools built for bulk orders.' },
-              { icon: SparklesIcon, title: 'AI quote assist', desc: 'Fair price & lead-time suggestions in one click.' },
-              { icon: GlobeAltIcon, title: 'Nationwide reach', desc: 'Get discovered by buyers across India.' },
-            ].map((f) => (
-              <div key={f.title} className="bg-white/5 border border-white/10 rounded-2xl p-5">
-                <f.icon className="w-5 h-5 text-amber-300 mb-3" />
-                <p className="font-semibold text-sm">{f.title}</p>
-                <p className="text-emerald-200 text-xs mt-1">{f.desc}</p>
-              </div>
+          <ol className="grid gap-10 sm:grid-cols-3 lg:col-span-8">
+            {BUYER_STEPS.map((step, i) => (
+              <li key={step.title}>
+                <span className="font-serif-display text-4xl text-accent">0{i + 1}</span>
+                <h3 className="mt-4 font-display text-lg font-bold text-ink">{step.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{step.body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* Categories */}
-      <section id="categories" className="scroll-mt-24 max-w-7xl mx-auto px-6 lg:px-10 py-20">
-        <div className="text-center max-w-xl mx-auto mb-10">
-          <h2 className="font-serif-display text-3xl md:text-4xl font-bold text-slate-900 mb-3">Browse by category</h2>
-          <p className="text-slate-500">A growing catalog across natural fibres, synthetics, and home textiles.</p>
-        </div>
-        <div className="flex flex-wrap gap-3 justify-center">
-          {[...FABRIC_CATEGORIES.map((c) => c.name), 'Corduroy', 'Rayon', 'Chambray', 'Jute', 'Canvas', 'Home Textiles'].map((cat) => (
-            <Link
-              key={cat}
-              to="/home"
-              className="px-5 py-2 rounded-full text-sm font-medium bg-white border border-slate-200/70 text-slate-600 hover:border-emerald-300 hover:text-emerald-800 hover:-translate-y-0.5 transition-all duration-200 shadow-sm"
-            >
-              {cat}
+      {/* ------------------------------------------------------------ Suppliers */}
+      <section id="suppliers" className="scroll-mt-6 bg-brand-strong text-white" aria-labelledby="suppliers-title">
+        <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 lg:grid-cols-12 lg:px-10 lg:py-24">
+          <div className="lg:col-span-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/90">For suppliers</p>
+            <h2 id="suppliers-title" className="mt-3 font-serif-display text-4xl font-semibold leading-tight">
+              Built for mills and wholesalers.
+            </h2>
+            <p className="mt-4 max-w-md leading-relaxed text-emerald-50/75">
+              Put your catalog in front of buyers who order by the roll — with the terms you set, enforced at checkout.
+            </p>
+            <Link to="/register?role=supplier" className="btn btn-lg mt-8 bg-accent text-ink hover:bg-[#d99a2b]">
+              Join as a supplier <ArrowRightIcon className="h-4 w-4" />
             </Link>
-          ))}
+          </div>
+          <ul className="grid gap-px overflow-hidden rounded-2xl bg-white/10 sm:grid-cols-2 lg:col-span-7">
+            {SUPPLIER_FEATURES.map((f) => (
+              <li key={f.title} className="bg-brand-strong p-6">
+                <h3 className="font-display font-bold">{f.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-emerald-50/70">{f.body}</p>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
-      {/* About */}
-      <section id="about" className="scroll-mt-24 bg-gradient-to-b from-amber-50/50 to-[#fdfbf8]">
-        <div className="max-w-3xl mx-auto px-6 py-20 text-center">
-          <h2 className="font-serif-display text-3xl md:text-4xl font-bold text-slate-900 mb-4">About VASTRA</h2>
-          <p className="text-slate-600 leading-relaxed">
-            VASTRA connects textile buyers directly with verified suppliers across India — cutting out the guesswork of
-            sourcing fabric. From premium mulberry silk to workaday polyester, every listing carries real fabric
-            specifications, transparent tiered pricing in Indian Rupees, and a supplier you can actually trust. Where
-            tradition meets trade.
-          </p>
-          <div className="flex items-center justify-center gap-4 mt-8">
-            <Link to="/register" className="border border-emerald-700 text-emerald-800 font-medium px-6 py-3 rounded-full hover:bg-emerald-50 transition-colors">
-              Create an account
-            </Link>
-            <button
-              type="button"
-              onClick={() => setExploreOpen(true)}
-              className="bg-emerald-800 text-white font-semibold px-6 py-3 rounded-full hover:bg-emerald-700 transition-colors"
-            >
-              Sign In
-            </button>
-          </div>
+      {/* ---------------------------------------------------------------- About */}
+      <section className="mx-auto max-w-3xl px-5 py-20 text-center lg:py-24" aria-labelledby="about-title">
+        <h2 id="about-title" className="font-serif-display text-3xl font-semibold text-ink md:text-4xl">
+          About Vastra
+        </h2>
+        <p className="mt-5 leading-relaxed text-ink-2">
+          Vastra connects textile buyers directly with suppliers across India. Every listing carries real fabric specifications, transparent pricing in
+          rupees and the supplier’s own minimum order — so a sourcing decision takes minutes, not weeks of calls.
+        </p>
+        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-primary">
+            Explore Textile
+          </button>
+          <Link to="/register" className="btn btn-secondary">
+            Create an account
+          </Link>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-emerald-950 text-emerald-200/80">
-        <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col items-center md:items-start leading-none">
-            <span className="font-serif-display text-lg text-white tracking-wide">VASTRA</span>
-            <span className="text-[11px] mt-1">Where Tradition Meets Trade</span>
-          </div>
-          <p className="text-xs">&copy; {new Date().getFullYear()} VASTRA. All rights reserved.</p>
+      <footer className="border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-5 py-8 sm:flex-row lg:px-10">
+          <Wordmark to="/" />
+          <p className="text-xs text-muted">&copy; {new Date().getFullYear()} VASTRA. Fabric photography via Wikimedia Commons.</p>
         </div>
       </footer>
 
-      {exploreOpen && <ExploreRoleModal onClose={() => setExploreOpen(false)} />}
+      <ExploreRoleModal open={exploreOpen} onClose={() => setExploreOpen(false)} />
 
-      {/* Fabric info modal */}
-      {activeFabric && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm px-4"
-          onClick={() => setActiveFabric(null)}
-        >
-          <div
-            className="bg-white rounded-3xl overflow-hidden max-w-md w-full shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="relative aspect-[16/9]">
-              {activeFabric.img ? (
-                <img src={activeFabric.img} alt={activeFabric.name} className="absolute inset-0 w-full h-full object-cover" />
-              ) : (
-                <div className={`absolute inset-0 bg-gradient-to-br ${activeFabric.swatch}`} />
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/80 via-transparent to-transparent" />
+      <Dialog open={Boolean(activeFabric)} onClose={() => setActiveFabric(null)} title={activeFabric?.name || 'Fabric'} size="md" bare>
+        {activeFabric && (
+          <>
+            <div className="relative">
+              <ProductImage src={wm(activeFabric.file, 900)} alt={activeFabric.name} className="aspect-[16/9] w-full" />
               <button
                 type="button"
                 onClick={() => setActiveFabric(null)}
                 aria-label="Close"
-                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition-colors"
+                className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-ink/40 text-white backdrop-blur-sm transition-colors hover:bg-ink/60"
               >
-                <XMarkIcon className="w-4 h-4" />
+                <XMarkIcon className="h-5 w-5" />
               </button>
-              <p className="absolute bottom-4 left-5 font-serif-display text-2xl font-bold text-white">{activeFabric.name}</p>
             </div>
             <div className="p-6">
-              <p className="text-slate-600 text-sm leading-relaxed">{activeFabric.blurb}</p>
-              <Link
-                to="/home"
-                className="mt-6 flex items-center justify-center gap-2 w-full bg-emerald-800 text-white font-semibold px-6 py-3 rounded-full hover:bg-emerald-700 transition-colors"
-              >
-                Browse {activeFabric.name}
-                <ArrowRightIcon className="w-4 h-4" />
+              <p className="font-serif-display text-3xl font-semibold text-ink">{activeFabric.name}</p>
+              <p className="mt-3 text-sm leading-relaxed text-ink-2">{activeFabric.blurb}</p>
+              <Link to={`/products?q=${encodeURIComponent(activeFabric.name)}`} className="btn btn-primary mt-6 w-full">
+                Browse {activeFabric.name.toLowerCase()} <ArrowRightIcon className="h-4 w-4" />
               </Link>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Dialog>
     </div>
   );
 }

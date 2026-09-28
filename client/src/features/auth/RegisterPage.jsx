@@ -1,8 +1,19 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { ShoppingBagIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
+import { CheckIcon } from '@heroicons/react/20/solid';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
 import { useSupplierAuth } from '../../context/SupplierAuthContext';
-import { SparklesIcon, ShieldCheckIcon, TruckIcon, GlobeAltIcon, BuildingStorefrontIcon, ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { AuthLayout, PasswordInput } from '../../components/AuthLayout';
+import { InlineError, Spinner } from '../../components/ui/States';
+import { getErrorMessage } from '../../utils/errors';
+
+const MIN_PASSWORD = 8; // matches the server-side policy in auth.service.js
+
+const ROLES = [
+  { value: 'buyer', label: 'Buyer', hint: 'I source fabric', icon: ShoppingBagIcon },
+  { value: 'supplier', label: 'Supplier', hint: 'I sell fabric', icon: BuildingStorefrontIcon },
+];
 
 function RegisterPage() {
   const [searchParams] = useSearchParams();
@@ -19,180 +30,116 @@ function RegisterPage() {
   const { registerUser: registerSupplier } = useSupplierAuth();
   const navigate = useNavigate();
 
+  const passwordLongEnough = password.length >= MIN_PASSWORD;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    if (!passwordLongEnough) {
+      setError(`Choose a password of at least ${MIN_PASSWORD} characters.`);
+      return;
+    }
     setError('');
     setSubmitting(true);
     try {
       // Registering as one role only ever creates a session for that role's
       // own context — it never touches the other role's session.
-      const user = role === 'buyer' ? await registerBuyer(email, password) : await registerSupplier(email, password);
-      navigate(user.role === 'buyer' ? '/buyer/onboarding' : '/supplier/onboarding');
+      const user = role === 'buyer' ? await registerBuyer(email.trim(), password) : await registerSupplier(email.trim(), password);
+      navigate(user.role === 'buyer' ? '/buyer/onboarding' : '/supplier/onboarding', { replace: true });
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed');
-    } finally {
+      setError(getErrorMessage(err, "We couldn't create your account."));
       setSubmitting(false);
     }
   };
 
+  const isSupplier = role === 'supplier';
+
   return (
-    <div className="min-h-screen grid grid-cols-1 lg:grid-cols-5">
-      {/* Brand panel */}
-      <div className="hidden lg:flex lg:col-span-2 relative overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 text-white flex-col justify-between p-12">
-        <div className="absolute -top-24 -left-24 w-80 h-80 bg-emerald-600/25 rounded-full blur-3xl" />
-        <div className="absolute top-1/3 -right-20 w-72 h-72 bg-amber-400/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-28 left-10 w-80 h-80 bg-emerald-500/25 rounded-full blur-3xl" />
+    <AuthLayout
+      heading={isSupplier ? 'Put your mill in front of serious buyers.' : 'Where tradition meets trade.'}
+      subheading={
+        isSupplier
+          ? 'List fabrics with real specs and MOQs, respond to bulk quote requests, and manage orders in one place.'
+          : 'One account to compare suppliers, order at minimum quantities and negotiate bulk prices.'
+      }
+    >
+      <h1 className="page-title">{lockedRole === 'supplier' ? 'Create your supplier account' : lockedRole === 'buyer' ? 'Create your buyer account' : 'Create your account'}</h1>
+      <p className="mt-2 text-sm text-muted">{isSupplier ? 'Start listing fabrics in a few minutes.' : 'Start sourcing fabric in a few minutes.'}</p>
 
-        <div className="relative">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-400 to-emerald-600 flex items-center justify-center font-display font-extrabold text-emerald-950">V</span>
-            <span className="flex flex-col leading-none">
-              <span className="font-serif-display text-xl font-bold tracking-wide">VASTRA</span>
-              <span className="text-[10px] font-medium text-emerald-300 tracking-wide mt-0.5">Where Tradition Meets Trade</span>
-            </span>
-          </Link>
+      <form onSubmit={handleSubmit} className="mt-8 space-y-5" noValidate>
+        <InlineError>{error}</InlineError>
 
-          <h1 className="font-display text-4xl font-extrabold leading-[1.15] mt-16 max-w-md">
-            Join a trusted network of textile buyers and suppliers.
-          </h1>
-          <p className="text-emerald-200 mt-4 max-w-sm">
-            Create your account in minutes and start sourcing — or selling — premium fabrics today.
+        {!lockedRole && (
+          <fieldset>
+            <legend className="label">I’m joining as a…</legend>
+            <div className="grid grid-cols-2 gap-3">
+              {ROLES.map((r) => {
+                const active = role === r.value;
+                return (
+                  <label
+                    key={r.value}
+                    className={`relative flex cursor-pointer flex-col gap-1 rounded-2xl border p-4 transition-colors has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-brand/15 ${
+                      active ? 'border-ink bg-surface' : 'border-line bg-surface hover:border-line-strong'
+                    }`}
+                  >
+                    <input type="radio" name="role" value={r.value} checked={active} onChange={() => setRole(r.value)} className="sr-only" />
+                    <r.icon className={`h-5 w-5 ${active ? 'text-ink' : 'text-muted'}`} aria-hidden="true" />
+                    <span className="mt-1 text-sm font-semibold text-ink">{r.label}</span>
+                    <span className="text-xs text-muted">{r.hint}</span>
+                    {active && <CheckIcon className="absolute right-3 top-3 h-4 w-4 text-ink" aria-hidden="true" />}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
+
+        <div>
+          <label htmlFor="register-email" className="label">
+            Work email
+          </label>
+          <input
+            id="register-email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoComplete="email"
+            placeholder="you@company.com"
+            maxLength={254}
+            className="input"
+          />
+        </div>
+        <div>
+          <label htmlFor="register-password" className="label">
+            Password
+          </label>
+          <PasswordInput
+            id="register-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+            describedBy="register-password-rule"
+          />
+          <p id="register-password-rule" className={`mt-1.5 flex items-center gap-1.5 text-xs ${passwordLongEnough ? 'text-success' : 'text-muted'}`}>
+            <CheckIcon className={`h-3.5 w-3.5 ${passwordLongEnough ? 'opacity-100' : 'opacity-30'}`} aria-hidden="true" />
+            At least {MIN_PASSWORD} characters
           </p>
         </div>
 
-        <div className="relative grid grid-cols-3 gap-4">
-          <div className="flex flex-col items-start gap-2">
-            <ShieldCheckIcon className="w-5 h-5 text-amber-300" />
-            <p className="text-sm font-medium text-emerald-100">Verified Suppliers</p>
-          </div>
-          <div className="flex flex-col items-start gap-2">
-            <TruckIcon className="w-5 h-5 text-amber-300" />
-            <p className="text-sm font-medium text-emerald-100">Reliable Fulfillment</p>
-          </div>
-          <div className="flex flex-col items-start gap-2">
-            <GlobeAltIcon className="w-5 h-5 text-amber-300" />
-            <p className="text-sm font-medium text-emerald-100">Global Sourcing</p>
-          </div>
-        </div>
-      </div>
+        <button type="submit" disabled={submitting} className={`btn btn-lg w-full ${isSupplier ? 'btn-accent' : 'btn-primary'}`}>
+          {submitting && <Spinner />}
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
 
-      {/* Form panel */}
-      <div className="lg:col-span-3 flex items-center justify-center px-6 py-16 bg-[#fdfbf8]">
-        <form onSubmit={handleSubmit} className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-2 justify-center mb-8">
-            <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-700 to-emerald-800 flex items-center justify-center font-display font-extrabold text-white">V</span>
-            <span className="flex flex-col leading-none">
-              <span className="font-serif-display text-xl font-bold tracking-wide text-slate-900">VASTRA</span>
-              <span className="text-[10px] font-medium text-slate-400 tracking-wide mt-0.5">Where Tradition Meets Trade</span>
-            </span>
-          </div>
-
-          <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 text-xs font-semibold px-3 py-1 rounded-full mb-4">
-            <SparklesIcon className="w-3.5 h-3.5" />
-            {lockedRole === 'supplier' ? 'Supplier sign-up' : lockedRole === 'buyer' ? 'Buyer sign-up' : 'Get started'}
-          </span>
-          <h1 className="font-display text-3xl font-extrabold text-slate-900">
-            {lockedRole === 'supplier' ? 'Create your supplier account' : lockedRole === 'buyer' ? 'Create your buyer account' : 'Create your account'}
-          </h1>
-          <p className="text-slate-500 text-sm mt-2">
-            {lockedRole === 'supplier'
-              ? 'List your fabrics and start selling to verified buyers.'
-              : lockedRole === 'buyer'
-              ? 'Start sourcing premium fabrics from verified suppliers.'
-              : 'Set up your marketplace profile in a minute.'}
-          </p>
-
-          {error && (
-            <p className="text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-4 py-2.5 mt-6">{error}</p>
-          )}
-
-          <div className="mt-8 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@company.com"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                placeholder="At least 6 characters"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-              />
-            </div>
-
-            {lockedRole ? (
-              <div
-                className={`flex items-center gap-3 rounded-2xl border-2 px-4 py-4 ${
-                  lockedRole === 'supplier' ? 'border-amber-500 bg-amber-50' : 'border-emerald-700 bg-emerald-50'
-                }`}
-              >
-                {lockedRole === 'supplier' ? (
-                  <BuildingStorefrontIcon className="w-6 h-6 text-amber-600" />
-                ) : (
-                  <ShoppingBagIcon className="w-6 h-6 text-emerald-700" />
-                )}
-                <span className={`text-sm font-semibold ${lockedRole === 'supplier' ? 'text-amber-700' : 'text-emerald-800'}`}>
-                  Registering as a {lockedRole === 'supplier' ? 'Supplier' : 'Buyer'}
-                </span>
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">I am a...</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setRole('buyer')}
-                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
-                      role === 'buyer' ? 'border-emerald-700 bg-emerald-50' : 'border-slate-200 hover:border-emerald-300'
-                    }`}
-                  >
-                    <ShoppingBagIcon className={`w-6 h-6 ${role === 'buyer' ? 'text-emerald-700' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-semibold ${role === 'buyer' ? 'text-emerald-800' : 'text-slate-600'}`}>Buyer</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRole('supplier')}
-                    className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 transition-all duration-200 ${
-                      role === 'supplier' ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:border-amber-300'
-                    }`}
-                  >
-                    <BuildingStorefrontIcon className={`w-6 h-6 ${role === 'supplier' ? 'text-amber-600' : 'text-slate-400'}`} />
-                    <span className={`text-sm font-semibold ${role === 'supplier' ? 'text-amber-700' : 'text-slate-600'}`}>Supplier</span>
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-gradient-to-r from-emerald-700 to-emerald-800 text-white rounded-full py-3 font-semibold mt-8 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-[1.01] active:scale-95 disabled:opacity-50"
-          >
-            {submitting ? 'Creating account...' : 'Create account'}
-          </button>
-
-          <p className="text-sm text-slate-500 text-center mt-6">
-            Already have an account?{' '}
-            <Link to={role === 'buyer' ? '/buyer/login' : '/supplier/login'} className="text-emerald-800 font-medium hover:text-emerald-900">
-              Log in
-            </Link>
-          </p>
-        </form>
-      </div>
-    </div>
+      <p className="mt-6 text-center text-sm text-muted">
+        Already have an account?{' '}
+        <Link to={isSupplier ? '/supplier/login' : '/buyer/login'} className="font-semibold text-brand hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </AuthLayout>
   );
 }
 

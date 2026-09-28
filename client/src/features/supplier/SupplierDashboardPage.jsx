@@ -1,148 +1,254 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronRightIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid';
 import { getSupplierDashboard } from '../../services/supplierService';
-import { ArchiveBoxIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, PlusIcon, ChartBarIcon, TrophyIcon } from '@heroicons/react/24/outline';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { ErrorState, Skeleton } from '../../components/ui/States';
+import { formatINR, formatQuantity } from '../../utils/pricing';
+import { pluralizeUnit } from '../../utils/units';
+import { getErrorMessage } from '../../utils/errors';
 
-const STATUS_COLORS = {
-  pending: 'bg-amber-50 text-amber-700',
-  accepted: 'bg-blue-50 text-blue-700',
-  preparing: 'bg-purple-50 text-purple-700',
-  ready_for_dispatch: 'bg-indigo-50 text-indigo-700',
-  completed: 'bg-emerald-50 text-emerald-700',
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// The API only returns days that had orders; fill the gaps with zeros so the
+// chart shows a true 30-day timeline instead of stretching sparse bars.
+const buildTimeline = (salesOverTime = []) => {
+  const byDate = new Map(salesOverTime.map((d) => [d.date, d]));
+  return Array.from({ length: 30 }, (_, i) => {
+    const date = new Date(Date.now() - (29 - i) * DAY_MS).toISOString().slice(0, 10);
+    return { date, revenue: byDate.get(date)?.revenue || 0, orders: byDate.get(date)?.orders || 0 };
+  });
 };
 
-function SupplierDashboardPage() {
-  const [data, setData] = useState(null);
+const shortDate = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
-  useEffect(() => {
-    getSupplierDashboard().then(setData);
-  }, []);
-
-  if (!data) return <p className="text-slate-400 text-center py-16">Loading dashboard...</p>;
-
-  const stats = [
-    { label: 'Total Products', value: data.totalProducts, icon: ArchiveBoxIcon, color: 'violet' },
-    { label: 'Active Products', value: data.activeProducts, icon: CheckCircleIcon, color: 'emerald' },
-    { label: 'Pending Orders', value: data.pendingOrders, icon: ClockIcon, color: 'amber' },
-    { label: 'Inventory Alerts', value: data.inventoryAlerts.length, icon: ExclamationTriangleIcon, color: 'rose' },
-  ];
-
-  const iconBg = {
-    violet: 'bg-emerald-50 text-emerald-700',
-    emerald: 'bg-emerald-50 text-emerald-600',
-    amber: 'bg-amber-50 text-amber-600',
-    rose: 'bg-rose-50 text-rose-600',
-  };
+function SalesChart({ timeline }) {
+  const max = Math.max(...timeline.map((d) => d.revenue), 1);
+  const total = timeline.reduce((sum, d) => sum + d.revenue, 0);
+  const orders = timeline.reduce((sum, d) => sum + d.orders, 0);
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="font-display text-2xl font-bold text-slate-900">Dashboard</h1>
-        <Link
-          to="/supplier/inventory"
-          className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 hover:scale-105 hover:shadow-lg hover:shadow-amber-500/30"
-        >
-          <PlusIcon className="w-4 h-4" />
-          Add Product
-        </Link>
+      <div className="flex items-baseline justify-between gap-4">
+        <div>
+          <p className="price text-2xl">{formatINR(total)}</p>
+          <p className="text-xs text-muted">
+            {orders} order{orders === 1 ? '' : 's'} in the last 30 days
+          </p>
+        </div>
       </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((stat) => (
-          <div key={stat.label} className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-5 shadow-sm">
-            <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${iconBg[stat.color]}`}>
-              <stat.icon className="w-4.5 h-4.5" />
-            </div>
-            <p className="text-slate-400 text-sm">{stat.label}</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">{stat.value}</p>
+      <div className="mt-5 flex h-32 items-end gap-[3px]" role="img" aria-label={`Revenue over the last 30 days: ${formatINR(total)} from ${orders} orders`}>
+        {timeline.map((d) => (
+          <div key={d.date} className="group relative flex h-full flex-1 items-end" title={`${shortDate(d.date)} · ${formatINR(d.revenue)}`}>
+            <div
+              className={`w-full rounded-t-[3px] transition-colors ${d.revenue > 0 ? 'bg-brand group-hover:bg-brand-strong' : 'bg-line'}`}
+              style={{ height: d.revenue > 0 ? `${Math.max((d.revenue / max) * 100, 6)}%` : '3px' }}
+            />
           </div>
         ))}
       </div>
+      <div className="mt-2 flex justify-between text-[11px] text-muted">
+        <span>{shortDate(timeline[0].date)}</span>
+        <span>Today</span>
+      </div>
+    </div>
+  );
+}
 
-      {(data.salesOverTime?.length > 0 || data.topProducts?.length > 0) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          {data.salesOverTime?.length > 0 && (
-            <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-5">
-                <ChartBarIcon className="w-5 h-5 text-emerald-700" />
-                <h2 className="font-semibold text-slate-800">Sales — last 30 days</h2>
-              </div>
-              <div className="flex items-end gap-1 h-32">
-                {data.salesOverTime.map((d) => {
-                  const max = Math.max(...data.salesOverTime.map((x) => x.revenue), 1);
-                  const heightPct = Math.max((d.revenue / max) * 100, 4);
-                  return (
-                    <div key={d.date} className="flex-1 group relative">
-                      <div
-                        className="w-full rounded-t-md bg-gradient-to-t from-emerald-700 to-emerald-600 transition-all duration-300 hover:opacity-80"
-                        style={{ height: `${heightPct}%` }}
-                      />
-                      <div className="absolute -top-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-slate-900 text-white text-[11px] px-2 py-1 rounded-md whitespace-nowrap z-10">
-                        {d.date}: ₹{d.revenue.toFixed(0)}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+function SupplierDashboardPage() {
+  const [data, setData] = useState(null);
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState('');
 
-          {data.topProducts?.length > 0 && (
-            <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center gap-2 mb-5">
-                <TrophyIcon className="w-5 h-5 text-amber-500" />
-                <h2 className="font-semibold text-slate-800">Top Products</h2>
-              </div>
-              <div className="space-y-3">
-                {data.topProducts.map((p, i) => (
-                  <div key={p.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2 text-slate-600 min-w-0">
-                      <span className="w-5 h-5 rounded-full bg-amber-50 text-amber-700 text-xs font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
-                      <span className="truncate">{p.name}</span>
-                    </span>
-                    <span className="text-slate-800 font-medium flex-shrink-0">{p.unitsSold} sold</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      setData(await getSupplierDashboard());
+      setStatus('ready');
+    } catch (err) {
+      setError(getErrorMessage(err, "We couldn't load your dashboard."));
+      setStatus('error');
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const timeline = useMemo(() => buildTimeline(data?.salesOverTime), [data]);
+
+  if (status === 'error') return <ErrorState message={error} onRetry={load} />;
+
+  if (status === 'loading') {
+    return (
+      <div aria-busy="true" aria-label="Loading dashboard">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="mt-8 h-24 w-full rounded-2xl" />
+        <div className="mt-8 grid gap-8 lg:grid-cols-5">
+          <Skeleton className="h-64 rounded-2xl lg:col-span-3" />
+          <Skeleton className="h-64 rounded-2xl lg:col-span-2" />
         </div>
+      </div>
+    );
+  }
+
+  const outOfStock = data.inventoryAlerts.filter((p) => p.stock <= 0).length;
+  const attention = [
+    data.pendingOrders > 0 && { to: '/supplier/orders', text: `${data.pendingOrders} new order${data.pendingOrders === 1 ? '' : 's'} waiting for acceptance` },
+    data.pendingQuotes > 0 && { to: '/supplier/quotes', text: `${data.pendingQuotes} quote request${data.pendingQuotes === 1 ? '' : 's'} need a price` },
+    outOfStock > 0 && { to: '/supplier/inventory', text: `${outOfStock} product${outOfStock === 1 ? ' is' : 's are'} out of stock and hidden from buyers` },
+  ].filter(Boolean);
+
+  const metrics = [
+    { label: 'Live listings', value: `${data.activeProducts}`, sub: `of ${data.totalProducts} products` },
+    { label: 'Pending orders', value: data.pendingOrders, sub: 'awaiting acceptance' },
+    { label: 'Open quotes', value: data.pendingQuotes ?? 0, sub: 'need a response' },
+    { label: 'Low stock', value: data.inventoryAlerts.length, sub: '20 units or fewer' },
+  ];
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Supplier</p>
+          <h1 className="page-title mt-1">Overview</h1>
+        </div>
+      </div>
+
+      <dl className="mt-6 grid grid-cols-2 overflow-hidden rounded-2xl border border-line bg-surface lg:grid-cols-4">
+        {metrics.map((m, i) => (
+          <div key={m.label} className={`px-5 py-4 ${i % 2 === 0 ? 'border-r' : ''} ${i < 2 ? 'border-b lg:border-b-0' : ''} border-line lg:border-r lg:last:border-r-0`}>
+            <dt className="text-xs font-medium text-muted">{m.label}</dt>
+            <dd className="mt-1 font-display text-2xl font-bold tabular-nums text-ink">{m.value}</dd>
+            <dd className="text-xs text-muted">{m.sub}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {attention.length > 0 && (
+        <section className="mt-6 rounded-2xl border border-accent/30 bg-accent-soft/60 p-4" aria-labelledby="needs-attention">
+          <h2 id="needs-attention" className="flex items-center gap-2 text-sm font-semibold text-accent-strong">
+            <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" /> Needs attention
+          </h2>
+          <ul className="mt-2 divide-y divide-accent/15">
+            {attention.map((item) => (
+              <li key={item.to}>
+                <Link to={item.to} className="flex items-center justify-between gap-3 py-2 text-sm text-ink hover:text-accent-strong">
+                  {item.text}
+                  <ChevronRightIcon className="h-4 w-4 flex-shrink-0 text-muted" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-800 mb-4">Recent Orders</h2>
-          {data.recentOrders.length === 0 ? (
-            <p className="text-slate-400 text-sm">No orders yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {data.recentOrders.map((order) => (
-                <div key={order._id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2.5">
-                  <span className="text-slate-600">#{order._id.slice(-6)} — ₹{order.total.toFixed(2)}</span>
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_COLORS[order.status]}`}>
-                    {order.status.replace(/_/g, ' ')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+      <div className="mt-8 grid gap-8 lg:grid-cols-5">
+        <section className="card p-6 lg:col-span-3" aria-labelledby="sales-heading">
+          <h2 id="sales-heading" className="section-title">
+            Sales
+          </h2>
+          <div className="mt-4">
+            <SalesChart timeline={timeline} />
+          </div>
+        </section>
 
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-semibold text-slate-800 mb-4">Inventory Alerts</h2>
-          {data.inventoryAlerts.length === 0 ? (
-            <p className="text-slate-400 text-sm">All stock levels healthy.</p>
+        <section className="card p-6 lg:col-span-2" aria-labelledby="top-heading">
+          <h2 id="top-heading" className="section-title">
+            Best sellers
+          </h2>
+          {data.topProducts.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">Your best-selling fabrics will appear here after your first orders.</p>
           ) : (
-            <div className="space-y-3">
-              {data.inventoryAlerts.map((product) => (
-                <div key={product._id} className="flex justify-between items-center text-sm border-b border-slate-100 pb-2.5">
-                  <span className="text-slate-600">{product.name}</span>
-                  <span className="text-amber-600 font-medium">{product.stock} left</span>
-                </div>
+            <ol className="mt-3">
+              {data.topProducts.map((p, i) => (
+                <li key={p.name} className="data-row">
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="w-4 text-xs font-bold tabular-nums text-muted">{i + 1}</span>
+                    <span className="truncate text-ink">{p.name}</span>
+                  </span>
+                  <span className="whitespace-nowrap text-right">
+                    <span className="block font-medium tabular-nums text-ink">{formatINR(p.revenue)}</span>
+                    <span className="block text-xs text-muted">{formatQuantity(p.unitsSold)} sold</span>
+                  </span>
+                </li>
               ))}
+            </ol>
+          )}
+        </section>
+      </div>
+
+      <div className="mt-8 grid gap-8 lg:grid-cols-5">
+        <section className="lg:col-span-3" aria-labelledby="recent-heading">
+          <div className="flex items-baseline justify-between">
+            <h2 id="recent-heading" className="section-title">
+              Recent orders
+            </h2>
+            <Link to="/supplier/orders" className="text-sm font-semibold text-accent-strong hover:underline">
+              All orders
+            </Link>
+          </div>
+          {data.recentOrders.length === 0 ? (
+            <p className="mt-4 rounded-2xl border border-dashed border-line-strong px-6 py-8 text-center text-sm text-muted">
+              No orders yet. Complete listings with clear MOQs and lead times convert best.
+            </p>
+          ) : (
+            <div className="mt-3 overflow-x-auto rounded-2xl border border-line bg-surface">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs text-muted">
+                    <th scope="col" className="px-4 py-2.5 font-medium">Order</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Items</th>
+                    <th scope="col" className="px-4 py-2.5 text-right font-medium">Total</th>
+                    <th scope="col" className="px-4 py-2.5 font-medium">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {data.recentOrders.map((order) => (
+                    <tr key={order._id}>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        <span className="font-semibold text-ink">#{order._id.slice(-6).toUpperCase()}</span>
+                        <span className="block text-xs text-muted">{shortDate(order.createdAt)}</span>
+                      </td>
+                      <td className="max-w-[12rem] truncate px-4 py-3 text-ink-2">{order.items.map((i) => i.name).join(', ')}</td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums text-ink">{formatINR(order.total)}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={order.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-        </div>
+        </section>
+
+        <section className="lg:col-span-2" aria-labelledby="stock-heading">
+          <div className="flex items-baseline justify-between">
+            <h2 id="stock-heading" className="section-title">
+              Low stock
+            </h2>
+            <Link to="/supplier/inventory" className="text-sm font-semibold text-accent-strong hover:underline">
+              Inventory
+            </Link>
+          </div>
+          {data.inventoryAlerts.length === 0 ? (
+            <p className="mt-4 text-sm text-muted">All stock levels are healthy.</p>
+          ) : (
+            <ul className="mt-3">
+              {data.inventoryAlerts.map((product) => (
+                <li key={product._id} className="data-row">
+                  <Link to={`/supplier/inventory/${product._id}/edit`} className="min-w-0 truncate text-ink hover:text-accent-strong">
+                    {product.name}
+                  </Link>
+                  <span className={`whitespace-nowrap font-semibold tabular-nums ${product.stock <= 0 ? 'text-danger' : 'text-warning'}`}>
+                    {product.stock <= 0 ? 'Out of stock' : `${formatQuantity(product.stock)} ${pluralizeUnit(product.unit, product.stock)} left`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );

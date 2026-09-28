@@ -1,92 +1,90 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { HeartIcon, StarIcon } from '@heroicons/react/24/solid';
-import { HeartIcon as HeartOutlineIcon } from '@heroicons/react/24/outline';
-import { getImageUrl } from '../utils/config';
-import { useWishlist } from '../context/WishlistContext';
-import { useBuyerAuth } from '../context/BuyerAuthContext';
+import { memo } from 'react';
+import { Link } from 'react-router-dom';
+import { StarIcon } from '@heroicons/react/20/solid';
+import ProductImage from './ui/ProductImage';
+import WishlistButton from './product/WishlistButton';
+import AddToCartButton from './product/AddToCartButton';
+import StockIndicator from './product/StockIndicator';
+import { stockLevel } from '../utils/stock';
+import { formatINR, formatQuantity } from '../utils/pricing';
+import { pluralizeUnit } from '../utils/units';
 
-function ProductCard({ product, onAddToCart }) {
-  const wishlist = useWishlist();
-  const { isLoggedIn } = useBuyerAuth();
-  const navigate = useNavigate();
-  const wishlisted = wishlist?.isWishlisted?.(product._id);
-
-  const handleWishlistClick = (e) => {
-    e.preventDefault();
-    if (!isLoggedIn) {
-      navigate('/buyer/login', { state: { from: `/products/${product._id}` } });
-      return;
-    }
-    wishlist.toggleWishlist(product._id);
-  };
+/**
+ * Image-led card for curated grids (home, wishlist, similar products).
+ * Takes plain props so it can be memoized — see useProductActions.
+ */
+function ProductCard({ product, wishlisted, onToggleWishlist, onAddToCart, eager = false }) {
+  const href = `/products/${product._id}`;
+  const unit = product.unit || 'unit';
+  const soldOut = stockLevel(product) === 'out';
 
   return (
-    <div className="group bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/70 overflow-hidden transition-all duration-300 hover:shadow-xl hover:shadow-emerald-900/10 hover:-translate-y-1.5 hover:border-emerald-200">
-      <Link to={`/products/${product._id}`}>
-        <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center overflow-hidden relative">
-          {product.images?.[0] ? (
-            <img
-              src={getImageUrl(product.images[0])}
-              alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-            />
-          ) : (
-            <span className="text-slate-300 text-sm font-medium">No image yet</span>
-          )}
-          <span
-            className={`absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-full backdrop-blur-md ${
-              product.status === 'available' ? 'bg-emerald-500/90 text-white' : 'bg-red-500/90 text-white'
-            }`}
-          >
-            {product.status === 'available' ? 'In Stock' : 'Out of Stock'}
-          </span>
+    <article className="group relative flex flex-col">
+      <div className="relative">
+        <Link to={href} tabIndex={-1} aria-hidden="true" className="block">
+          <ProductImage
+            src={product.images?.[0]}
+            eager={eager}
+            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            className="aspect-[4/5] w-full rounded-2xl"
+            imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+          />
+        </Link>
+        {onToggleWishlist && (
+          <div className="absolute right-3 top-3">
+            <WishlistButton active={wishlisted} onToggle={() => onToggleWishlist(product)} productName={product.name} className="shadow-sm" />
+          </div>
+        )}
+        {soldOut && <span className="badge absolute left-3 top-3 bg-surface/95 text-danger shadow-sm">Out of stock</span>}
+      </div>
 
-          {wishlist && (
-            <button
-              onClick={handleWishlistClick}
-              aria-label="Toggle wishlist"
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center shadow-sm transition-all duration-200 hover:scale-110"
-            >
-              {wishlisted ? (
-                <HeartIcon className="w-4 h-4 text-rose-500" />
-              ) : (
-                <HeartOutlineIcon className="w-4 h-4 text-slate-500" />
-              )}
-            </button>
-          )}
-        </div>
-      </Link>
-
-      <div className="p-5 backdrop-blur-sm">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] text-slate-400 uppercase tracking-widest font-semibold">{product.category}</p>
+      <div className="flex flex-1 flex-col pt-3.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="eyebrow truncate">{product.category}</p>
           {product.ratingCount > 0 && (
-            <span className="flex items-center gap-0.5 text-xs font-medium text-amber-600">
-              <StarIcon className="w-3.5 h-3.5" />
-              {product.ratingAverage?.toFixed(1)}
+            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-ink-2">
+              <StarIcon className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+              {product.ratingAverage.toFixed(1)}
             </span>
           )}
         </div>
-        <Link to={`/products/${product._id}`}>
-          <h3 className="font-semibold text-slate-900 mt-1.5 leading-snug transition-colors group-hover:text-emerald-800">
+        <h3 className="mt-1 line-clamp-2 font-display text-[15px] font-bold leading-snug text-ink">
+          <Link to={href} className="hover:text-brand">
             {product.name}
-          </h3>
-        </Link>
-        <div className="flex items-center justify-between mt-5">
+          </Link>
+        </h3>
+        <p className="mt-1 text-xs text-muted">
+          {product.moq > 1 ? `MOQ ${formatQuantity(product.moq)} ${pluralizeUnit(unit, product.moq)}` : 'No minimum order'}
+          {product.supplier?.businessName && ` · ${product.supplier.businessName}`}
+        </p>
+
+        <div className="mt-auto flex items-end justify-between gap-3 pt-3">
           <div>
-            <span className="text-xl font-bold text-slate-900">₹{product.price}</span>
-            <span className="text-slate-400 text-xs"> /{product.unit || 'unit'}</span>
+            <p className="price text-lg leading-none">
+              {formatINR(product.price)}
+              <span className="ml-1 font-sans text-xs font-normal text-muted">/{unit}</span>
+            </p>
+            {!soldOut && <StockIndicator product={product} showQuantity={false} className="mt-1.5" />}
           </div>
-          <button
-            onClick={() => onAddToCart(product._id)}
-            className="text-sm font-medium bg-gradient-to-r from-emerald-700 to-emerald-800 text-white px-4 py-2 rounded-full transition-all duration-200 hover:shadow-md hover:shadow-emerald-700/30 hover:scale-105 active:scale-95"
-          >
-            Add
-          </button>
+          {onAddToCart && <AddToCartButton disabled={soldOut} onAdd={() => onAddToCart(product)} />}
         </div>
+      </div>
+    </article>
+  );
+}
+
+export default memo(ProductCard);
+
+export function ProductCardSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="skeleton aspect-[4/5] w-full rounded-2xl" />
+      <div className="space-y-2 pt-3.5">
+        <div className="skeleton h-2.5 w-16" />
+        <div className="skeleton h-4 w-4/5" />
+        <div className="skeleton h-3 w-1/2" />
+        <div className="skeleton mt-3 h-5 w-20" />
       </div>
     </div>
   );
 }
-
-export default ProductCard;

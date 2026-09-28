@@ -1,139 +1,163 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { DocumentTextIcon } from '@heroicons/react/24/outline';
 import { getMyQuotes, acceptQuote, rejectQuote } from '../../services/quoteService';
-import { getImageUrl } from '../../utils/config';
-import { DocumentTextIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { getCartCount, CART_CHANGED_EVENT } from '../../services/cartService';
+import { useToast } from '../../components/ui/Toast';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ProductImage from '../../components/ui/ProductImage';
+import { EmptyState, ErrorState, Skeleton, Spinner } from '../../components/ui/States';
+import { formatINR, formatQuantity } from '../../utils/pricing';
+import { pluralizeUnit } from '../../utils/units';
+import { getErrorMessage } from '../../utils/errors';
 
-const STATUS_COLORS = {
-  pending: 'bg-amber-50 text-amber-700',
-  quoted: 'bg-blue-50 text-blue-700',
-  accepted: 'bg-emerald-50 text-emerald-700',
-  rejected: 'bg-red-50 text-red-700',
-  expired: 'bg-slate-100 text-slate-500',
-};
+const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
 function BuyerQuotesPage() {
   const [quotes, setQuotes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState(null);
-  const [toast, setToast] = useState('');
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(null); // { id, action }
+  const toast = useToast();
 
-  useEffect(() => {
-    fetchQuotes();
-  }, []);
-
-  const fetchQuotes = async () => {
-    setLoading(true);
+  const load = useCallback(async () => {
     try {
       const data = await getMyQuotes();
       setQuotes(data.quotes);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAccept = async (id) => {
-    setBusyId(id);
-    try {
-      await acceptQuote(id);
-      setToast('Added to cart at the quoted price ✓');
-      fetchQuotes();
+      setStatus('ready');
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to accept quote');
-    } finally {
-      setBusyId(null);
-      setTimeout(() => setToast(''), 2500);
+      setError(getErrorMessage(err, "We couldn't load your quotes."));
+      setStatus('error');
     }
-  };
+  }, []);
 
-  const handleReject = async (id) => {
-    setBusyId(id);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const replaceQuote = (updated) => setQuotes((list) => list.map((q) => (q._id === updated._id ? updated : q)));
+
+  const handleAccept = async (quote) => {
+    setBusy({ id: quote._id, action: 'accept' });
     try {
-      await rejectQuote(id);
-      fetchQuotes();
+      const data = await acceptQuote(quote._id);
+      replaceQuote(data.quote);
+      toast.success('Offer accepted — added to your cart at the quoted price', { action: { label: 'View cart', to: '/cart' } });
+      getCartCount()
+        .then((count) => window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT, { detail: { count } })))
+        .catch(() => {});
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Couldn't accept this offer."));
+      load();
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   };
 
-  if (loading) return <p className="text-slate-400 text-center py-16">Loading quotes...</p>;
+  const handleReject = async (quote) => {
+    setBusy({ id: quote._id, action: 'reject' });
+    try {
+      const data = await rejectQuote(quote._id);
+      replaceQuote(data.quote);
+      toast.info('Offer declined');
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Couldn't decline this offer."));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-bold text-slate-900 mb-6">My Quote Requests</h1>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="page-title">Quotes</h1>
+      <p className="mt-1 text-sm text-muted">Bulk price requests you’ve sent, and the offers suppliers have made.</p>
 
-      {quotes.length === 0 ? (
-        <div className="text-center py-24">
-          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <DocumentTextIcon className="w-7 h-7 text-emerald-400" />
-          </div>
-          <p className="text-slate-500 text-lg mb-4">No quote requests yet.</p>
-          <Link
-            to="/home"
-            className="inline-block bg-gradient-to-r from-emerald-700 to-emerald-800 text-white px-5 py-2.5 rounded-full font-medium transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-105"
-          >
-            Browse products to request a quote
-          </Link>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {quotes.map((quote) => (
-            <div key={quote._id} className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-14 h-14 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
-                    {quote.productId?.images?.[0] && (
-                      <img src={getImageUrl(quote.productId.images[0])} alt="" className="w-full h-full object-cover" />
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-slate-900 truncate">{quote.productId?.name}</p>
-                    <p className="text-sm text-slate-500">Qty requested: {quote.requestedQuantity}{quote.targetPrice ? ` · Target ₹${quote.targetPrice}/unit` : ''}</p>
-                  </div>
-                </div>
-                <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize flex-shrink-0 ${STATUS_COLORS[quote.status]}`}>
-                  {quote.status}
-                </span>
-              </div>
-
-              {quote.message && <p className="text-sm text-slate-500 mt-3 italic">"{quote.message}"</p>}
-
-              {quote.status === 'quoted' && (
-                <div className="mt-4 bg-emerald-50/60 border border-emerald-100 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm text-slate-600">Supplier offer</p>
-                    <p className="text-xl font-bold text-emerald-800">
-                      ₹{quote.quotedPrice}/unit
-                      {quote.quotedLeadTime && <span className="text-sm font-normal text-slate-500"> · {quote.quotedLeadTime}</span>}
-                    </p>
-                    {quote.supplierMessage && <p className="text-sm text-slate-500 mt-1">"{quote.supplierMessage}"</p>}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleReject(quote._id)}
-                      disabled={busyId === quote._id}
-                      className="text-sm border border-slate-200 text-slate-600 px-4 py-2 rounded-full hover:border-slate-400 transition-colors disabled:opacity-50"
-                    >
-                      Decline
-                    </button>
-                    <button
-                      onClick={() => handleAccept(quote._id)}
-                      disabled={busyId === quote._id}
-                      className="text-sm bg-gradient-to-r from-emerald-700 to-emerald-800 text-white px-4 py-2 rounded-full hover:shadow-md hover:shadow-emerald-700/30 transition-all duration-200 disabled:opacity-50 flex items-center gap-1.5"
-                    >
-                      <CheckCircleIcon className="w-4 h-4" />
-                      Accept &amp; add to cart
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+      {status === 'loading' && (
+        <div className="mt-6 space-y-3" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
           ))}
         </div>
       )}
+      {status === 'error' && <ErrorState message={error} onRetry={load} />}
+      {status === 'ready' && quotes.length === 0 && (
+        <EmptyState
+          icon={DocumentTextIcon}
+          title="No quote requests yet"
+          description="Ordering a large or custom run? Open any fabric and choose “Request a bulk quote” to negotiate directly with the supplier."
+          action={{ label: 'Find a fabric', to: '/products' }}
+        />
+      )}
 
-      {toast && (
-        <div className="fixed bottom-40 md:bottom-6 left-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50">{toast}</div>
+      {status === 'ready' && quotes.length > 0 && (
+        <ul className="mt-6 space-y-4">
+          {quotes.map((quote) => {
+            const product = quote.productId;
+            const unit = product?.unit || 'unit';
+            const isBusy = busy?.id === quote._id;
+            return (
+              <li key={quote._id} className="card animate-fade-up p-5">
+                <div className="flex items-start gap-4">
+                  <ProductImage src={product?.images?.[0]} className="h-16 w-16 flex-shrink-0 rounded-xl" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      {product ? (
+                        <Link to={`/products/${product._id}`} className="font-display font-bold text-ink hover:text-brand">
+                          {product.name}
+                        </Link>
+                      ) : (
+                        <span className="font-display font-bold text-muted">Product removed</span>
+                      )}
+                      <StatusBadge status={quote.status} />
+                    </div>
+                    <p className="mt-1 text-sm text-ink-2">
+                      {formatQuantity(quote.requestedQuantity)} {pluralizeUnit(unit, quote.requestedQuantity)}
+                      {quote.targetPrice ? <span className="text-muted"> · target {formatINR(quote.targetPrice)}/{unit}</span> : null}
+                      {product && <span className="text-muted"> · list {formatINR(product.price)}/{unit}</span>}
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted">Requested {formatDate(quote.createdAt)}</p>
+                  </div>
+                </div>
+
+                {quote.message && <p className="mt-4 border-l-2 border-line pl-3 text-sm text-ink-2">{quote.message}</p>}
+
+                {['quoted', 'accepted'].includes(quote.status) && quote.quotedPrice && (
+                  <div className={`mt-4 rounded-xl border p-4 ${quote.status === 'quoted' ? 'border-brand/25 bg-brand-soft/60' : 'border-line bg-surface-2/60'}`}>
+                    <div className="flex flex-wrap items-end justify-between gap-4">
+                      <div>
+                        <p className="eyebrow">Supplier offer</p>
+                        <p className="mt-1 flex items-baseline gap-1.5">
+                          <span className="price text-2xl">{formatINR(quote.quotedPrice)}</span>
+                          <span className="text-sm text-muted">/{unit}</span>
+                        </p>
+                        <p className="mt-1 text-sm text-ink-2">
+                          {formatINR(quote.quotedPrice * quote.requestedQuantity)} total
+                          {quote.quotedLeadTime && ` · ships in ${quote.quotedLeadTime}`}
+                          {quote.validUntil && ` · valid until ${formatDate(quote.validUntil)}`}
+                        </p>
+                        {quote.supplierMessage && <p className="mt-2 text-sm text-ink-2">“{quote.supplierMessage}”</p>}
+                      </div>
+                      {quote.status === 'quoted' && (
+                        <div className="flex gap-2">
+                          <button type="button" onClick={() => handleReject(quote)} disabled={isBusy} className="btn btn-secondary">
+                            {isBusy && busy.action === 'reject' && <Spinner />}
+                            Decline
+                          </button>
+                          <button type="button" onClick={() => handleAccept(quote)} disabled={isBusy} className="btn btn-primary">
+                            {isBusy && busy.action === 'accept' && <Spinner />}
+                            Accept &amp; add to cart
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {quote.status === 'pending' && <p className="mt-4 text-sm text-muted">Waiting for the supplier to respond. You’ll get a notification when they do.</p>}
+              </li>
+            );
+          })}
+        </ul>
       )}
     </div>
   );

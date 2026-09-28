@@ -1,38 +1,31 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Suspense, useEffect, useState } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useSupplierAuth } from '../context/SupplierAuthContext';
 import NotificationBell from './NotificationBell';
-import {
-  Squares2X2Icon,
-  ArchiveBoxIcon,
-  PlusCircleIcon,
-  ClipboardDocumentListIcon,
-  DocumentTextIcon,
-  UserCircleIcon,
-  ArrowRightOnRectangleIcon,
-  Bars3Icon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
+import Wordmark from './Wordmark';
+import { PageLoader } from './ui/States';
+import { ArrowRightStartOnRectangleIcon, Bars3Icon, XMarkIcon, PlusIcon } from '@heroicons/react/24/outline';
 
-// Primary nav per the supplier routing spec.
-const PRIMARY_LINKS = [
-  { to: '/supplier', label: 'Dashboard', icon: Squares2X2Icon, end: true },
-  { to: '/supplier/inventory', label: 'My Products', icon: ArchiveBoxIcon },
-  { to: '/supplier/inventory/new', label: 'Add Product', icon: PlusCircleIcon },
-  { to: '/supplier/orders', label: 'Orders', icon: ClipboardDocumentListIcon },
+const LINKS = [
+  { to: '/supplier', label: 'Dashboard', end: true },
+  { to: '/supplier/inventory', label: 'Inventory', end: true },
+  { to: '/supplier/orders', label: 'Orders' },
+  { to: '/supplier/quotes', label: 'Quotes' },
+  { to: '/supplier/profile', label: 'Profile' },
 ];
 
-// Preserved secondary features — reachable via compact icon links rather
-// than cluttering the primary nav.
-const SECONDARY_LINKS = [
-  { to: '/supplier/quotes', label: 'Quotes', icon: DocumentTextIcon },
-  { to: '/supplier/profile', label: 'Profile', icon: UserCircleIcon },
-];
+const desktopLink = ({ isActive }) =>
+  `relative px-3 py-2 text-sm font-medium transition-colors after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded-full ${
+    isActive ? 'text-ink after:bg-accent' : 'text-ink-2 hover:text-ink after:bg-transparent'
+  }`;
 
 function SupplierLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, logout } = useSupplierAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  useEffect(() => setMenuOpen(false), [pathname]);
 
   const handleLogout = () => {
     logout();
@@ -40,97 +33,81 @@ function SupplierLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/40 via-[#fdfbf8] to-[#fdfbf8]">
-      <nav className="fixed top-4 inset-x-0 z-40 mx-auto w-[95%] max-w-6xl">
-        <div className="transform-gpu backdrop-blur-xl bg-white/70 border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-900/5 px-6">
-          <div className="flex items-center justify-between h-16">
-            <NavLink to="/supplier" className="font-display text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-emerald-800 flex items-center justify-center text-white text-sm font-extrabold">V</span>
-              <span className="flex flex-col leading-none">
-                <span className="flex items-center gap-2">
-                  <span className="font-serif-display tracking-wide">VASTRA</span> <span className="text-xs font-medium text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Supplier</span>
-                </span>
-                <span className="text-[10px] font-medium text-slate-400 tracking-wide hidden lg:block">Where Tradition Meets Trade</span>
-              </span>
-            </NavLink>
-
-            <div className="hidden md:flex items-center gap-1">
-              {PRIMARY_LINKS.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.end}
-                  className={({ isActive }) =>
-                    `relative flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                      isActive ? 'bg-amber-50 text-amber-700' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                    }`
-                  }
-                >
-                  <link.icon className="w-4 h-4" />
+    <div className="min-h-screen bg-canvas">
+      <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-3 focus:z-[80] focus:rounded-full focus:bg-ink focus:px-4 focus:py-2 focus:text-sm focus:text-white">
+        Skip to content
+      </a>
+      <header className="sticky top-0 z-40 border-b border-line bg-canvas/95 supports-[backdrop-filter]:bg-canvas/85 supports-[backdrop-filter]:backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 md:px-6">
+          <div className="flex items-center gap-8">
+            <Wordmark to="/supplier" tag="Supplier" showTagline={false} />
+            <nav aria-label="Supplier" className="hidden items-center gap-1 lg:flex">
+              {LINKS.map((link) => (
+                <NavLink key={link.to} to={link.to} end={link.end} className={desktopLink}>
                   {link.label}
                 </NavLink>
               ))}
-            </div>
+            </nav>
+          </div>
 
-            <div className="hidden md:flex items-center gap-3">
-              {SECONDARY_LINKS.map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  aria-label={link.label}
-                  className={({ isActive }) =>
-                    `w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                      isActive ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50 hover:text-amber-700'
-                    }`
-                  }
-                >
-                  <link.icon className="w-4.5 h-4.5" />
-                </NavLink>
-              ))}
-              <NotificationBell accent="amber" />
-              <span className="text-slate-400 text-sm hidden lg:inline">{user?.email}</span>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-1.5 text-sm bg-emerald-950 text-white px-4 py-2 rounded-full hover:bg-emerald-900 transition-all duration-200 hover:scale-105 active:scale-95"
-              >
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                Logout
+          <div className="flex items-center gap-1">
+            <NavLink to="/supplier/inventory/new" className="btn btn-sm btn-accent mr-1 hidden sm:inline-flex">
+              <PlusIcon className="h-4 w-4" />
+              Add product
+            </NavLink>
+            <NotificationBell role="supplier" />
+            <div className="ml-2 hidden items-center gap-3 border-l border-line pl-3 lg:flex">
+              <span className="hidden max-w-[160px] truncate text-sm text-muted xl:inline" title={user?.email}>
+                {user?.email}
+              </span>
+              <button type="button" onClick={handleLogout} className="btn btn-sm btn-secondary">
+                <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+                Log out
               </button>
             </div>
-
-            <button className="md:hidden p-2 text-slate-700" onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu">
-              {menuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+            <button
+              type="button"
+              className="icon-btn lg:hidden"
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-label={menuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={menuOpen}
+              aria-controls="supplier-menu"
+            >
+              {menuOpen ? <XMarkIcon className="h-6 w-6" /> : <Bars3Icon className="h-6 w-6" />}
             </button>
           </div>
+        </div>
 
-          <div className={`md:hidden overflow-hidden transition-all duration-300 ease-in-out ${menuOpen ? 'max-h-96 opacity-100 pb-4' : 'max-h-0 opacity-0'}`}>
-            <div className="flex flex-col gap-1">
-              {[...PRIMARY_LINKS, ...SECONDARY_LINKS].map((link) => (
-                <NavLink
-                  key={link.to}
-                  to={link.to}
-                  end={link.end}
-                  onClick={() => setMenuOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                      isActive ? 'bg-amber-50 text-amber-700' : 'text-slate-600'
-                    }`
-                  }
-                >
-                  <link.icon className="w-4 h-4" />
-                  {link.label}
-                </NavLink>
+        {menuOpen && (
+          <nav id="supplier-menu" aria-label="Supplier" className="animate-fade-in border-t border-line bg-canvas px-4 pb-5 pt-2 lg:hidden">
+            <ul>
+              {[...LINKS, { to: '/supplier/inventory/new', label: 'Add product' }].map((link) => (
+                <li key={link.to}>
+                  <NavLink
+                    to={link.to}
+                    end={link.end}
+                    className={({ isActive }) => `flex items-center justify-between border-b border-line py-3.5 text-[15px] font-medium ${isActive ? 'text-accent-strong' : 'text-ink'}`}
+                  >
+                    {link.label}
+                  </NavLink>
+                </li>
               ))}
-              <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm bg-emerald-950 text-white px-4 py-2.5 rounded-xl w-fit mt-2">
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                Logout
+            </ul>
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <span className="truncate text-sm text-muted">{user?.email}</span>
+              <button type="button" onClick={handleLogout} className="btn btn-sm btn-secondary">
+                <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+                Log out
               </button>
             </div>
-          </div>
-        </div>
-      </nav>
-      <main className="max-w-6xl mx-auto px-4 pt-28 pb-12">
-        <Outlet />
+          </nav>
+        )}
+      </header>
+
+      <main id="main" className="mx-auto max-w-6xl px-4 pb-16 pt-6 md:px-6 md:pt-10">
+        <Suspense fallback={<PageLoader />}>
+          <Outlet />
+        </Suspense>
       </main>
     </div>
   );

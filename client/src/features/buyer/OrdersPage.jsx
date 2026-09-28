@@ -1,58 +1,128 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { ClipboardDocumentListIcon } from '@heroicons/react/24/outline';
 import { getMyOrders } from '../../services/orderService';
+import StatusBadge from '../../components/ui/StatusBadge';
+import OrderProgress from '../../components/OrderProgress';
+import { EmptyState, ErrorState, Skeleton } from '../../components/ui/States';
+import { formatINR, formatQuantity } from '../../utils/pricing';
+import { pluralizeUnit } from '../../utils/units';
+import { getErrorMessage } from '../../utils/errors';
 
-const STATUS_COLORS = {
-  pending: 'bg-amber-50 text-amber-700',
-  accepted: 'bg-blue-50 text-blue-700',
-  preparing: 'bg-purple-50 text-purple-700',
-  ready_for_dispatch: 'bg-indigo-50 text-indigo-700',
-  completed: 'bg-emerald-50 text-emerald-700',
-};
+const FILTERS = [
+  { value: 'active', label: 'In progress' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'all', label: 'All' },
+];
+
+const formatDate = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 function OrdersPage() {
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState('');
+  const [filter, setFilter] = useState('active');
 
-  useEffect(() => {
-    getMyOrders().then((data) => {
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const data = await getMyOrders();
       setOrders(data.orders);
-      setLoading(false);
-    });
+      // Nothing in progress? Show history instead of an empty tab.
+      if (!data.orders.some((o) => o.status !== 'completed')) setFilter('all');
+      setStatus('ready');
+    } catch (err) {
+      setError(getErrorMessage(err, "We couldn't load your orders."));
+      setStatus('error');
+    }
   }, []);
 
-  if (loading) return <p className="text-slate-400 text-center py-16">Loading orders...</p>;
-  if (orders.length === 0) return <p className="text-slate-400 text-center py-16">No orders yet.</p>;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const visible = orders.filter((o) => (filter === 'all' ? true : filter === 'completed' ? o.status === 'completed' : o.status !== 'completed'));
 
   return (
-    <div>
-      <h1 className="font-display text-2xl font-bold text-slate-900 mb-6">Your Orders</h1>
-      <div className="space-y-4">
-        {orders.map((order) => (
-          <div key={order._id} className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-5 transition-all duration-200 hover:shadow-md">
-            <div className="flex justify-between items-start mb-3">
-              <div>
-                <p className="text-sm text-slate-400">Order #{order._id.slice(-6)}</p>
-                <p className="text-xs text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</p>
-              </div>
-              <span className={`text-xs font-semibold px-3 py-1 rounded-full capitalize ${STATUS_COLORS[order.status]}`}>
-                {order.status.replace(/_/g, ' ')}
-              </span>
-            </div>
-            <div className="space-y-1">
-              {order.items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm text-slate-600">
-                  <span>{item.name} × {item.quantity} {item.unit || 'unit'} (₹{item.price}/{item.unit || 'unit'})</span>
-                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-            <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between font-semibold text-slate-900">
-              <span>Total</span>
-              <span>₹{order.total.toFixed(2)}</span>
-            </div>
+    <div className="mx-auto max-w-4xl">
+      <h1 className="page-title">Orders</h1>
+      <p className="mt-1 text-sm text-muted">Track each supplier order from placement to dispatch.</p>
+
+      {status === 'loading' && (
+        <div className="mt-6 space-y-4" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
+          ))}
+        </div>
+      )}
+
+      {status === 'error' && <ErrorState message={error} onRetry={load} />}
+
+      {status === 'ready' && orders.length === 0 && (
+        <EmptyState
+          icon={ClipboardDocumentListIcon}
+          title="No orders yet"
+          description="When you check out, each supplier’s order appears here with live status updates."
+          action={{ label: 'Browse fabrics', to: '/products' }}
+        />
+      )}
+
+      {status === 'ready' && orders.length > 0 && (
+        <>
+          <div className="mt-6 inline-flex rounded-full border border-line bg-surface p-1" role="tablist" aria-label="Filter orders">
+            {FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.value}
+                onClick={() => setFilter(f.value)}
+                className={`h-8 rounded-full px-4 text-sm font-medium transition-colors ${filter === f.value ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'}`}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
+
+          {visible.length === 0 ? (
+            <EmptyState compact title="Nothing here" description={filter === 'active' ? 'All your orders are completed.' : 'No completed orders yet.'} />
+          ) : (
+            <ul className="mt-5 space-y-4">
+              {visible.map((order) => (
+                <li key={order._id} className="card animate-fade-up overflow-hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface-2/50 px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <span className="font-display font-bold text-ink">#{order._id.slice(-6).toUpperCase()}</span>
+                      <span className="text-sm text-muted">{formatDate(order.createdAt)}</span>
+                    </div>
+                    <StatusBadge status={order.status} />
+                  </div>
+                  <div className="px-5 py-5">
+                    <OrderProgress order={order} />
+                    <ul className="mt-5 space-y-1.5 text-sm">
+                      {order.items.map((item) => (
+                        <li key={item.productId} className="flex justify-between gap-4">
+                          <span className="min-w-0 text-ink-2">
+                            <span className="font-medium text-ink">{item.name}</span>
+                            <span className="text-muted">
+                              {' '}
+                              · {formatQuantity(item.quantity)} {pluralizeUnit(item.unit, item.quantity)} × {formatINR(item.price)}
+                            </span>
+                          </span>
+                          <span className="tabular-nums text-ink-2">{formatINR(item.price * item.quantity)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
+                      <span className="truncate pr-4 text-xs text-muted">Ship to: {order.shippingInfo?.address}</span>
+                      <span className="price whitespace-nowrap">{formatINR(order.total)}</span>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </div>
   );
 }

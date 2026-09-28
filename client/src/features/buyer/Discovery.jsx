@@ -1,224 +1,174 @@
-import { useState, useEffect } from 'react';
-import { getProducts } from '../../services/productService';
-import { addToCart } from '../../services/cartService';
-import { getProductCategoryStats } from '../../services/categoryService';
-import { pluralizeUnit } from '../../utils/units';
-import ProductCard from '../../components/ProductCard';
-import { MagnifyingGlassIcon, ShieldCheckIcon, TruckIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
+import { getProducts, getProductCategoryStats } from '../../services/productService';
+import { useProductActions } from '../../hooks/useProductActions';
+import ProductCard, { ProductCardSkeleton } from '../../components/ProductCard';
+import { ErrorState } from '../../components/ui/States';
+import { getErrorMessage } from '../../utils/errors';
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-slate-200/70 overflow-hidden animate-pulse">
-      <div className="aspect-square bg-slate-100" />
-      <div className="p-5 space-y-2">
-        <div className="h-2.5 w-16 bg-slate-100 rounded" />
-        <div className="h-4 w-3/4 bg-slate-100 rounded" />
-        <div className="h-6 w-1/2 bg-slate-100 rounded mt-2" />
-      </div>
-    </div>
-  );
-}
+const HOW_IT_WORKS = [
+  { title: 'Clear minimums', body: 'Every listing shows its MOQ up front, and the cart enforces it — no surprises at checkout.' },
+  { title: 'Bulk quotes', body: 'Need a large run? Request a quote and negotiate price and lead time directly with the supplier.' },
+  { title: 'Tiered pricing', body: 'Per-unit prices drop automatically as your quantity crosses a supplier’s bulk tiers.' },
+];
 
 function Discovery() {
+  const navigate = useNavigate();
+  const [search, setSearch] = useState('');
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [keyword, setKeyword] = useState('');
-  const [category, setCategory] = useState('All');
-  const [toast, setToast] = useState('');
-  const [categories, setCategories] = useState(['All']);
+  const [categories, setCategories] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState('');
+  const { quickAdd, onToggleWishlist, wishlistIds } = useProductActions();
 
-  useEffect(() => {
-    getProductCategoryStats()
-      .then((data) => setCategories(['All', ...data.categories.map((c) => c.category)]))
-      .catch(() => {});
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const [productData, categoryData] = await Promise.all([
+        getProducts({ limit: 8, sort: 'newest' }),
+        getProductCategoryStats().catch(() => ({ categories: [] })),
+      ]);
+      setProducts(productData.products);
+      setCategories(categoryData.categories.slice(0, 8));
+      setStatus('ready');
+    } catch (err) {
+      setError(getErrorMessage(err, "We couldn't load the marketplace."));
+      setStatus('error');
+    }
   }, []);
 
   useEffect(() => {
-    fetchProducts();
-  }, [category]);
-
-  const fetchProducts = async () => {
-    setLoading(true);
-    try {
-      const params = {};
-      if (keyword) params.keyword = keyword;
-      if (category !== 'All') params.category = category;
-      const data = await getProducts(params);
-      setProducts(data.products);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    load();
+  }, [load]);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchProducts();
+    const q = search.trim();
+    navigate(q ? `/products?q=${encodeURIComponent(q)}` : '/products');
   };
-
-  const handleAddToCart = async (productId) => {
-    const product = products.find((p) => p._id === productId);
-    try {
-      await addToCart(productId, 1);
-      setToast(`Added 1 ${pluralizeUnit(product?.unit, 1)} to cart ✓`);
-    } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to add to cart');
-    } finally {
-      setTimeout(() => setToast(''), 2200);
-    }
-  };
-
-  const featured = products.slice(0, 4);
-  const rest = products.slice(4);
 
   return (
     <div>
-      {/* Hero */}
-      <div className="relative text-center mb-10 py-20 px-6 bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-950 rounded-3xl text-white overflow-hidden">
-        {/* Drifting fabric swatches */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="fabric-swatch fabric-anim-a w-40 h-52 -top-10 -left-10 bg-gradient-to-br from-amber-400/40 to-amber-600/20 opacity-40" />
-          <div className="fabric-swatch fabric-anim-b w-32 h-44 top-8 right-[8%] bg-gradient-to-br from-emerald-400/40 to-emerald-900/20 opacity-40" style={{ animationDelay: '-3s' }} />
-          <div className="fabric-swatch fabric-anim-c w-44 h-32 top-1/3 left-[6%] bg-gradient-to-br from-rose-400/30 to-rose-700/15 opacity-30" style={{ animationDelay: '-6s' }} />
-          <div className="fabric-swatch fabric-anim-d w-36 h-48 bottom-4 right-[4%] bg-gradient-to-br from-emerald-400/30 to-emerald-700/15 opacity-30" style={{ animationDelay: '-2s' }} />
-          <div className="fabric-swatch fabric-anim-a w-28 h-36 bottom-8 left-1/4 bg-gradient-to-br from-sky-400/30 to-sky-700/15 opacity-30" style={{ animationDelay: '-9s' }} />
-          <div className="fabric-swatch fabric-anim-b w-48 h-28 -bottom-6 right-1/3 bg-gradient-to-br from-indigo-400/30 to-indigo-800/15 opacity-30" style={{ animationDelay: '-5s' }} />
-          <div className="fabric-swatch fabric-anim-c w-24 h-32 top-6 left-[40%] bg-gradient-to-br from-teal-400/25 to-teal-700/10 opacity-25" style={{ animationDelay: '-11s' }} />
-          <div className="fabric-swatch fabric-anim-d w-52 h-24 -top-6 right-[18%] bg-gradient-to-br from-stone-300/25 to-stone-500/10 opacity-25" style={{ animationDelay: '-7s' }} />
-          <div className="absolute inset-0 bg-gradient-to-br from-emerald-950/70 via-emerald-900/60 to-emerald-950/70" />
-        </div>
-        <div className="relative">
-          <span className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md border border-white/10 text-amber-300 text-xs font-medium px-3 py-1.5 rounded-full mb-6">
-            <SparklesIcon className="w-3.5 h-3.5" />
-            Premium fabric sourcing, simplified
-          </span>
-          <h1 className="font-serif-display text-4xl md:text-6xl font-extrabold mb-4 tracking-tight leading-[1.1]">
-            Source fabrics directly<br className="hidden md:block" /> from <span className="text-emerald-300">verified suppliers</span>
+      {/* Intro band */}
+      <section className="relative -mx-4 overflow-hidden bg-brand-strong text-white md:mx-0 md:rounded-3xl">
+        <picture>
+          <source media="(min-width: 768px)" srcSet="/hero-fabric-patchwork.webp" type="image/webp" />
+          <img
+            src="/hero-fabric-patchwork-768.webp"
+            alt=""
+            width="768"
+            height="512"
+            fetchPriority="high"
+            className="absolute inset-y-0 right-0 h-full w-full object-cover opacity-35 md:w-3/5 md:opacity-90 md:[mask-image:linear-gradient(to_right,transparent,black_35%)]"
+          />
+        </picture>
+        <div className="relative max-w-xl px-6 py-12 md:px-12 md:py-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-200/90">Vastra marketplace</p>
+          <h1 className="mt-3 font-serif-display text-[2.1rem] font-semibold leading-[1.1] md:text-5xl">
+            Source fabric straight <span className="italic text-amber-100">from the mill.</span>
           </h1>
-          <p className="text-emerald-200 text-lg max-w-xl mx-auto">Browse, compare, and order — all in one elegant marketplace.</p>
-
-          {/* Glass search container */}
-          <form onSubmit={handleSearch} className="relative mt-10 max-w-xl mx-auto">
-            <div className="flex gap-2 bg-white/10 backdrop-blur-xl border border-white/15 rounded-full p-1.5 shadow-lg">
-              <div className="relative flex-1">
-                <MagnifyingGlassIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-emerald-200" />
-                <input
-                  type="text"
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Search fabrics, e.g. 'breathable cotton'..."
-                  className="w-full bg-transparent text-white placeholder-emerald-200 pl-11 pr-4 py-2.5 rounded-full focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                className="bg-gradient-to-r from-amber-500 to-amber-400 text-emerald-950 px-6 py-2.5 rounded-full hover:from-amber-400 hover:to-amber-300 transition-all duration-200 hover:scale-105 active:scale-95 font-semibold"
-              >
-                Search
-              </button>
+          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-emerald-50/80">
+            Compare prices, minimums and lead times across Indian textile suppliers — then order or request a bulk quote.
+          </p>
+          <form onSubmit={handleSearch} role="search" className="mt-8 flex max-w-md gap-2 rounded-full bg-white p-1.5 shadow-[0_12px_32px_-12px_rgba(0,0,0,0.5)]">
+            <label htmlFor="home-search" className="sr-only">
+              Search fabrics
+            </label>
+            <div className="relative flex-1">
+              <MagnifyingGlassIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden="true" />
+              <input
+                id="home-search"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Try “organic cotton poplin”"
+                maxLength={100}
+                className="h-10 w-full rounded-full bg-transparent pl-10 pr-3 text-sm text-ink outline-none placeholder:text-muted/80"
+              />
             </div>
+            <button type="submit" className="btn btn-primary h-10">
+              Search
+            </button>
           </form>
+        </div>
+      </section>
 
-          {/* Stat counters */}
-          <div className="grid grid-cols-3 gap-4 max-w-lg mx-auto mt-12">
-            <div>
-              <p className="font-display text-2xl md:text-3xl font-extrabold text-amber-300">350K+</p>
-              <p className="text-emerald-200 text-xs md:text-sm mt-1">Verified Suppliers</p>
-            </div>
-            <div>
-              <p className="font-display text-2xl md:text-3xl font-extrabold text-amber-300">400K+</p>
-              <p className="text-emerald-200 text-xs md:text-sm mt-1">Products Listed</p>
-            </div>
-            <div>
-              <p className="font-display text-2xl md:text-3xl font-extrabold text-amber-300">600K+</p>
-              <p className="text-emerald-200 text-xs md:text-sm mt-1">Trusted Buyers</p>
-            </div>
+      {/* Categories */}
+      {categories.length > 0 && (
+        <section className="mt-12" aria-labelledby="home-categories">
+          <div className="flex items-end justify-between">
+            <h2 id="home-categories" className="section-title">
+              Shop by fibre
+            </h2>
+            <Link to="/products" className="text-sm font-semibold text-brand hover:underline">
+              Full catalog
+            </Link>
           </div>
-        </div>
-      </div>
+          <ul className="-mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0">
+            {categories.map((c) => (
+              <li key={c.category} className="flex-shrink-0">
+                <Link
+                  to={`/products?category=${encodeURIComponent(c.category)}`}
+                  className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-surface px-4 text-sm font-medium text-ink-2 transition-colors hover:border-ink/30 hover:text-ink"
+                >
+                  {c.category}
+                  <span className="text-xs tabular-nums text-muted">{c.count}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
-      {/* Trust indicators */}
-      <div className="grid grid-cols-3 gap-3 mb-10">
-        <div className="flex items-center gap-2 justify-center bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-xl py-3 px-2 text-center transition-colors hover:border-emerald-200">
-          <ShieldCheckIcon className="w-5 h-5 text-emerald-700 flex-shrink-0" />
-          <span className="text-xs md:text-sm font-medium text-slate-700">Verified Suppliers</span>
+      {/* New arrivals */}
+      <section className="mt-12" aria-labelledby="home-new">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 id="home-new" className="section-title">
+              New in the catalog
+            </h2>
+            <p className="mt-0.5 text-sm text-muted">Recently listed by suppliers</p>
+          </div>
+          <Link to="/products" className="hidden items-center gap-1 text-sm font-semibold text-brand hover:underline sm:inline-flex">
+            View all <ArrowRightIcon className="h-4 w-4" />
+          </Link>
         </div>
-        <div className="flex items-center gap-2 justify-center bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-xl py-3 px-2 text-center transition-colors hover:border-emerald-200">
-          <TruckIcon className="w-5 h-5 text-emerald-700 flex-shrink-0" />
-          <span className="text-xs md:text-sm font-medium text-slate-700">Reliable Fulfillment</span>
-        </div>
-        <div className="flex items-center gap-2 justify-center bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-xl py-3 px-2 text-center transition-colors hover:border-emerald-200">
-          <SparklesIcon className="w-5 h-5 text-amber-500 flex-shrink-0" />
-          <span className="text-xs md:text-sm font-medium text-slate-700">AI-Powered Search</span>
-        </div>
-      </div>
 
-      {/* Floating category chips */}
-      <div className="flex gap-2 mb-10 flex-wrap justify-center">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 shadow-sm ${
-              category === cat
-                ? 'bg-gradient-to-r from-emerald-700 to-emerald-800 text-white shadow-emerald-700/20'
-                : 'bg-white/70 backdrop-blur-sm text-slate-600 border border-slate-200/70 hover:border-emerald-300 hover:-translate-y-0.5'
-            }`}
-          >
-            {cat}
-          </button>
+        {status === 'error' ? (
+          <ErrorState message={error} onRetry={load} />
+        ) : (
+          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
+            {status === 'loading'
+              ? Array.from({ length: 8 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : products.map((product, i) => (
+                  <ProductCard
+                    key={product._id}
+                    product={product}
+                    eager={i < 4}
+                    wishlisted={wishlistIds.has(product._id)}
+                    onToggleWishlist={onToggleWishlist}
+                    onAddToCart={quickAdd}
+                  />
+                ))}
+          </div>
+        )}
+
+        <Link to="/products" className="btn btn-secondary mt-8 w-full sm:hidden">
+          Browse all fabrics
+        </Link>
+      </section>
+
+      {/* How buying works */}
+      <section className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-line bg-line md:grid-cols-3" aria-label="How buying on Vastra works">
+        {HOW_IT_WORKS.map((item, i) => (
+          <div key={item.title} className="bg-surface p-6">
+            <p className="font-serif-display text-2xl text-accent">0{i + 1}</p>
+            <h3 className="mt-3 font-display text-base font-bold text-ink">{item.title}</h3>
+            <p className="mt-1.5 text-sm leading-relaxed text-muted">{item.body}</p>
+          </div>
         ))}
-      </div>
-
-      {toast && (
-        <div className="fixed bottom-40 md:bottom-6 left-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50">
-          {toast}
-        </div>
-      )}
-
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <SkeletonCard key={i} />
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-slate-400 text-lg">No products found.</p>
-          <p className="text-slate-300 text-sm mt-1">Try a different search or category.</p>
-        </div>
-      ) : (
-        <>
-          {featured.length > 0 && (
-            <div className="mb-14">
-              <div className="flex items-center gap-4 mb-6">
-                <h2 className="font-display text-2xl font-bold text-slate-900">Featured</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {featured.map((product) => (
-                  <ProductCard key={product._id} product={product} onAddToCart={handleAddToCart} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {rest.length > 0 && (
-            <div>
-              <div className="flex items-center gap-4 mb-6">
-                <h2 className="font-display text-2xl font-bold text-slate-900">All Products</h2>
-                <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {rest.map((product) => (
-                  <ProductCard key={product._id} product={product} onAddToCart={handleAddToCart} />
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
+      </section>
     </div>
   );
 }

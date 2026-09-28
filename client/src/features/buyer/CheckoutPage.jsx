@@ -1,209 +1,290 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { getCart } from '../../services/cartService';
-import { checkout } from '../../services/orderService';
-import { CheckIcon, TruckIcon } from '@heroicons/react/24/outline';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import { ShoppingBagIcon } from '@heroicons/react/24/outline';
+import { getCart, CART_CHANGED_EVENT } from '../../services/cartService';
+import { checkout } from '../../services/orderService';
+import { getBuyerProfile, addAddress } from '../../services/buyerService';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { EmptyState, ErrorState, InlineError, Skeleton, Spinner } from '../../components/ui/States';
+import { formatINR, formatQuantity } from '../../utils/pricing';
+import { pluralizeUnit } from '../../utils/units';
+import { getErrorMessage } from '../../utils/errors';
 
-const COUNTRY_CODES = [
-  { code: '+91', label: 'India (+91)' },
-  { code: '+1', label: 'USA/Canada (+1)' },
-  { code: '+44', label: 'UK (+44)' },
-  { code: '+971', label: 'UAE (+971)' },
-  { code: '+86', label: 'China (+86)' },
-  { code: '+61', label: 'Australia (+61)' },
-];
+const COUNTRY_CODES = ['+91', '+1', '+44', '+971', '+86', '+61'];
+
+const orderRef = (id) => `#${id.slice(-6).toUpperCase()}`;
+
+// Splits a stored "+91 9876543210" back into its parts for prefilling.
+const splitContact = (contact = '') => {
+  const match = contact.match(/^(\+\d{1,4})\s*(\d+)$/);
+  return match && COUNTRY_CODES.includes(match[1]) ? { code: match[1], number: match[2] } : { code: '+91', number: contact.replace(/\D/g, '') };
+};
+
+function Confirmation({ orders }) {
+  const total = orders.reduce((sum, o) => sum + o.total, 0);
+  return (
+    <div className="mx-auto max-w-xl animate-fade-up py-6 text-center">
+      <CheckCircleIcon className="mx-auto h-14 w-14 text-success" aria-hidden="true" />
+      <h1 className="page-title mt-4">Order placed</h1>
+      <p className="mt-2 text-sm text-muted">
+        {orders.length > 1
+          ? `Your order was split into ${orders.length} orders, one per supplier. Each supplier will confirm theirs separately.`
+          : 'The supplier has been notified and will confirm your order shortly.'}
+      </p>
+
+      <ul className="mt-8 space-y-3 text-left">
+        {orders.map((order) => (
+          <li key={order._id} className="card p-5">
+            <div className="flex items-center justify-between">
+              <span className="font-display font-bold text-ink">Order {orderRef(order._id)}</span>
+              <StatusBadge status={order.status} />
+            </div>
+            <ul className="mt-3 space-y-1 text-sm">
+              {order.items.map((item) => (
+                <li key={item.productId} className="flex justify-between gap-4 text-ink-2">
+                  <span className="min-w-0 truncate">
+                    {item.name} <span className="text-muted">× {formatQuantity(item.quantity)} {pluralizeUnit(item.unit, item.quantity)}</span>
+                  </span>
+                  <span className="tabular-nums">{formatINR(item.price * item.quantity)}</span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-4 flex justify-between px-1 text-sm font-semibold text-ink">
+        <span>Total</span>
+        <span className="price text-lg">{formatINR(total)}</span>
+      </p>
+
+      <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+        <Link to="/orders" className="btn btn-primary">
+          Track orders
+        </Link>
+        <Link to="/products" className="btn btn-secondary">
+          Continue sourcing
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 function CheckoutPage() {
   const [cart, setCart] = useState(null);
-  const [address, setAddress] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [placedOrders, setPlacedOrders] = useState(null);
-  const [error, setError] = useState('');
+  const [status, setStatus] = useState('loading');
+  const [loadError, setLoadError] = useState('');
+  const [form, setForm] = useState({ address: '', countryCode: '+91', phone: '', saveAddress: true });
+  const [hasSavedAddress, setHasSavedAddress] = useState(false);
+  const [touched, setTouched] = useState({});
+  const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const navigate = useNavigate();
+  const [placedOrders, setPlacedOrders] = useState(null);
 
-  useEffect(() => {
-    getCart().then((data) => setCart(data.cart));
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const [cartData, profileData] = await Promise.all([getCart(), getBuyerProfile().catch(() => null)]);
+      setCart(cartData.cart);
+      const saved = profileData?.profile?.addresses || [];
+      const preferred = saved.find((a) => a.isDefault) || saved[0];
+      if (preferred) {
+        const { code, number } = splitContact(preferred.contact);
+        setForm((f) => ({ ...f, address: f.address || preferred.address, countryCode: code, phone: f.phone || number, saveAddress: false }));
+        setHasSavedAddress(true);
+      }
+      setStatus('ready');
+    } catch (err) {
+      setLoadError(getErrorMessage(err, "We couldn't load your cart."));
+      setStatus('error');
+    }
   }, []);
 
-  const handlePhoneChange = (e) => {
-    const digitsOnly = e.target.value.replace(/\D/g, '');
-    setPhoneNumber(digitsOnly);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const errors = {
+    address: form.address.trim().length < 10 ? 'Enter the full delivery address (at least 10 characters).' : '',
+    phone: form.phone.length < 7 || form.phone.length > 15 ? 'Enter a valid phone number (7–15 digits).' : '',
   };
+  const isValid = !errors.address && !errors.phone;
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
-    setError('');
+    setTouched({ address: true, phone: true });
+    if (!isValid || submitting) return;
+    setSubmitError('');
     setSubmitting(true);
+    const shippingInfo = { address: form.address.trim(), contact: `${form.countryCode} ${form.phone}` };
     try {
-      const contact = `${countryCode} ${phoneNumber}`;
-      const data = await checkout({ address, contact });
+      const data = await checkout(shippingInfo);
+      if (form.saveAddress && !hasSavedAddress) {
+        addAddress({ ...shippingInfo, label: 'Default', isDefault: true }).catch(() => {});
+      }
       setPlacedOrders(data.orders);
+      window.dispatchEvent(new CustomEvent(CART_CHANGED_EVENT, { detail: { count: 0 } }));
+      window.scrollTo({ top: 0 });
     } catch (err) {
-      setError(err.response?.data?.error || 'Checkout failed');
+      // Form stays filled in so the buyer can fix the cart and retry.
+      setSubmitError(getErrorMessage(err, "We couldn't place your order."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (placedOrders) {
+  if (placedOrders) return <Confirmation orders={placedOrders} />;
+  if (status === 'loading') {
     return (
-      <div className="max-w-xl mx-auto text-center py-12">
-        <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-          <CheckCircleIcon className="w-12 h-12" />
-        </div>
-        <h1 className="font-display text-2xl font-bold text-slate-900 mb-2">Order placed!</h1>
-        <p className="text-slate-500 mb-8">
-          {placedOrders.length > 1
-            ? `Your order was split into ${placedOrders.length} orders across different suppliers.`
-            : 'Your order has been confirmed.'}
-        </p>
-
-        <div className="space-y-3 text-left">
-          {placedOrders.map((order) => (
-            <div key={order._id} className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-5 shadow-sm">
-              <div className="flex justify-between text-sm text-slate-500 mb-3">
-                <span>Order #{order._id.slice(-6)}</span>
-                <span className="capitalize font-medium text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full text-xs">{order.status}</span>
-              </div>
-              {order.items.map((item) => (
-                <div key={item.productId} className="flex justify-between text-sm text-slate-600 py-0.5">
-                  <span>{item.name} × {item.quantity} {item.unit || 'unit'}</span>
-                  <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between font-semibold text-slate-900">
-                <span>Total</span>
-                <span>₹{order.total.toFixed(2)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex gap-3 justify-center mt-8">
-          <Link to="/orders" className="bg-gradient-to-r from-emerald-700 to-emerald-800 text-white px-5 py-2.5 rounded-full transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-105">
-            View Orders
-          </Link>
-          <Link to="/home" className="border border-slate-300 text-slate-700 px-5 py-2.5 rounded-full hover:border-slate-500 transition-colors">
-            Continue Shopping
-          </Link>
-        </div>
+      <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-12" aria-busy="true">
+        <Skeleton className="h-80 rounded-2xl lg:col-span-7" />
+        <Skeleton className="h-64 rounded-2xl lg:col-span-5" />
       </div>
     );
   }
+  if (status === 'error') return <ErrorState message={loadError} onRetry={load} />;
 
-  if (!cart) return <p className="text-slate-400 text-center py-16">Loading...</p>;
-  if (cart.items.length === 0) {
-    return (
-      <div className="text-center py-20">
-        <p className="text-slate-400 text-lg mb-4">Your cart is empty — nothing to check out.</p>
-        <Link to="/home" className="text-emerald-800 underline hover:text-emerald-900 transition-colors">
-          Browse the marketplace
-        </Link>
-      </div>
-    );
+  const items = (cart?.items || []).filter((item) => item.productId);
+  if (items.length === 0) {
+    return <EmptyState icon={ShoppingBagIcon} title="Nothing to check out" description="Your cart is empty." action={{ label: 'Browse fabrics', to: '/products' }} />;
   }
 
-  const subtotal = cart.items.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.priceAtAdd * item.quantity, 0);
+  const supplierCount = new Set(items.map((item) => item.productId.supplierId).filter(Boolean)).size;
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* Progress indicator */}
-      <div className="flex items-center gap-3 mb-8">
-        <div className="flex items-center gap-2 text-emerald-700 font-medium text-sm">
-          <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">
-            <CheckIcon className="w-3.5 h-3.5" />
-          </span>
-          Cart
-        </div>
-        <div className="flex-1 h-px bg-emerald-200" />
-        <div className="flex items-center gap-2 text-emerald-700 font-medium text-sm">
-          <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs">2</span>
-          Checkout
-        </div>
-        <div className="flex-1 h-px bg-slate-200" />
-        <div className="flex items-center gap-2 text-slate-400 font-medium text-sm">
-          <span className="w-6 h-6 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs">3</span>
-          Confirmation
-        </div>
-      </div>
+    <div className="mx-auto max-w-5xl">
+      <Link to="/cart" className="text-sm font-medium text-muted hover:text-ink">
+        ← Back to cart
+      </Link>
+      <h1 className="page-title mt-3">Checkout</h1>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <form onSubmit={handlePlaceOrder} className="lg:col-span-2 space-y-6">
-          {error && <p className="text-red-600 text-sm">{error}</p>}
+      <div className="mt-6 grid gap-8 lg:grid-cols-12">
+        <form onSubmit={handlePlaceOrder} className="space-y-6 lg:col-span-7" noValidate>
+          <InlineError>
+            {submitError && (
+              <>
+                {submitError}{' '}
+                <Link to="/cart" className="font-semibold underline">
+                  Review cart
+                </Link>
+              </>
+            )}
+          </InlineError>
 
-          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 space-y-4 shadow-sm">
-            <div className="flex items-center gap-2">
-              <TruckIcon className="w-5 h-5 text-emerald-700" />
-              <h2 className="font-semibold text-slate-800">Shipping Information</h2>
-            </div>
+          <fieldset className="card space-y-5 p-6">
+            <legend className="sr-only">Delivery details</legend>
+            <h2 className="section-title">Delivery details</h2>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Delivery Address</label>
+              <label htmlFor="checkout-address" className="label">
+                Delivery address
+              </label>
               <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                required
+                id="checkout-address"
                 rows={3}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                maxLength={500}
+                autoComplete="street-address"
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                onBlur={() => setTouched((t) => ({ ...t, address: true }))}
+                aria-invalid={Boolean(touched.address && errors.address)}
+                aria-describedby="checkout-address-error"
+                placeholder="Warehouse / unit, street, city, PIN code"
+                className="input"
               />
+              {touched.address && errors.address && (
+                <p id="checkout-address-error" className="field-error">
+                  {errors.address}
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
+              <label htmlFor="checkout-phone" className="label">
+                Contact number
+              </label>
               <div className="flex gap-2">
+                <label htmlFor="checkout-country" className="sr-only">
+                  Country code
+                </label>
                 <select
-                  value={countryCode}
-                  onChange={(e) => setCountryCode(e.target.value)}
-                  className="border border-slate-200 rounded-xl px-2 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  id="checkout-country"
+                  value={form.countryCode}
+                  onChange={(e) => setForm((f) => ({ ...f, countryCode: e.target.value }))}
+                  className="input w-24"
                 >
-                  {COUNTRY_CODES.map((c) => (
-                    <option key={c.code} value={c.code}>{c.code}</option>
+                  {COUNTRY_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
                   ))}
                 </select>
                 <input
+                  id="checkout-phone"
                   type="tel"
                   inputMode="numeric"
-                  value={phoneNumber}
-                  onChange={handlePhoneChange}
-                  required
-                  minLength={7}
-                  maxLength={12}
-                  placeholder="9876543210"
-                  className="flex-1 min-w-0 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
+                  autoComplete="tel-national"
+                  maxLength={15}
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value.replace(/\D/g, '') }))}
+                  onBlur={() => setTouched((t) => ({ ...t, phone: true }))}
+                  aria-invalid={Boolean(touched.phone && errors.phone)}
+                  aria-describedby="checkout-phone-error"
+                  placeholder="98765 43210"
+                  className="input flex-1"
                 />
               </div>
+              {touched.phone && errors.phone && (
+                <p id="checkout-phone-error" className="field-error">
+                  {errors.phone}
+                </p>
+              )}
             </div>
-          </div>
+            {!hasSavedAddress && (
+              <label className="flex items-center gap-2.5 text-sm text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={form.saveAddress}
+                  onChange={(e) => setForm((f) => ({ ...f, saveAddress: e.target.checked }))}
+                  className="h-4 w-4 rounded border-line-strong accent-[var(--color-brand)]"
+                />
+                Save as my default delivery address
+              </label>
+            )}
+          </fieldset>
 
-          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-            <h2 className="font-semibold text-slate-800 mb-4">Order Review</h2>
-            <div className="space-y-2">
-              {cart.items.map((item) => (
-                <div key={item.productId._id} className="flex justify-between text-sm text-slate-600">
-                  <span>{item.productId.name} × {item.quantity} {item.productId.unit || 'unit'}</span>
-                  <span>₹{(item.priceAtAdd * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="text-xs leading-relaxed text-muted">
+            No payment is taken now. Each supplier confirms availability and arranges dispatch and invoicing directly with you.
+          </p>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full bg-gradient-to-r from-emerald-700 to-emerald-800 text-white py-3.5 rounded-full font-medium transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-[1.01] active:scale-95 disabled:opacity-50"
-          >
-            {submitting ? 'Placing order...' : 'Place Order'}
+          <button type="submit" disabled={submitting} className="btn btn-primary btn-lg w-full">
+            {submitting && <Spinner />}
+            {submitting ? 'Placing order…' : `Place order · ${formatINR(subtotal)}`}
           </button>
         </form>
 
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 h-fit shadow-sm">
-          <h2 className="font-bold text-lg text-slate-900 mb-4">Summary</h2>
-          <div className="flex justify-between font-bold text-slate-900">
-            <span>Total</span>
-            <span>₹{subtotal.toFixed(2)}</span>
+        <aside className="lg:col-span-5" aria-label="Order review">
+          <div className="card p-6 lg:sticky lg:top-24">
+            <h2 className="section-title">Order review</h2>
+            <ul className="mt-4 space-y-3">
+              {items.map((item) => (
+                <li key={item.productId._id} className="flex justify-between gap-4 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium text-ink">{item.productId.name}</span>
+                    <span className="text-xs text-muted">
+                      {formatQuantity(item.quantity)} {pluralizeUnit(item.productId.unit, item.quantity)} × {formatINR(item.priceAtAdd)}
+                    </span>
+                  </span>
+                  <span className="tabular-nums text-ink-2">{formatINR(item.priceAtAdd * item.quantity)}</span>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-5 flex items-baseline justify-between border-t border-line pt-4">
+              <span className="font-semibold text-ink">Total</span>
+              <span className="price text-2xl">{formatINR(subtotal)}</span>
+            </div>
+            {supplierCount > 1 && <p className="mt-3 text-xs text-muted">Placed as {supplierCount} orders — one per supplier.</p>}
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

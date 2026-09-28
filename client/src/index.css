@@ -1,61 +1,177 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@500;600;700;800&family=Playfair+Display:ital,wght@0,500;0,600;0,700;0,800;1,600&display=swap');
 
-html {
-  scroll-behavior: smooth;
+/* Vastra palette — deep loom green with a restrained turmeric accent on warm
+   paper. Semantic names so pages describe intent (ink, muted, line) rather
+   than raw hues. */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Manrope', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+
+  --color-canvas: #faf8f4;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f1ea;
+  --color-ink: #16211c;
+  --color-ink-2: #3d4943;
+  --color-muted: #66706a;
+  --color-line: #e7e2d8;
+  --color-line-strong: #d6cfc2;
+
+  --color-brand: #134e3a;
+  --color-brand-strong: #0c3a2b;
+  --color-brand-soft: #e7f0eb;
+  --color-accent: #c98a1b;
+  --color-accent-strong: #9a5a09;
+  --color-accent-soft: #fbf1dc;
+
+  --color-success: #1d7a4c;
+  --color-success-soft: #e5f4ec;
+  --color-warning: #a95d05;
+  --color-warning-soft: #fdf2e0;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-info: #245a8a;
+  --color-info-soft: #e8f0f8;
+
+  --animate-fade-up: fade-up 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-fade-in: fade-in 180ms ease-out both;
+  --animate-pop: pop 260ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  --animate-panel-in: panel-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes pop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.22); }
+    100% { transform: scale(1); }
+  }
+  @keyframes panel-in {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: none; }
+  }
 }
 
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background-color: #fdfbf8;
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background-color: #cfe5d8;
+    color: var(--color-brand-strong);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+
+  button:not(:disabled),
+  [role='button'] {
+    cursor: pointer;
+  }
 }
 
-.font-display {
-  font-family: 'Manrope', 'Inter', system-ui, sans-serif;
+@layer components {
+  .font-display { font-family: var(--font-display); }
+  /* Elegant serif for the VASTRA wordmark and editorial headlines */
+  .font-serif-display { font-family: var(--font-serif); }
+
+  .page-title {
+    @apply font-display text-2xl md:text-[1.75rem] font-bold tracking-tight text-ink;
+  }
+  .section-title {
+    @apply font-display text-lg font-bold tracking-tight text-ink;
+  }
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-muted;
+  }
+  .price {
+    @apply font-display font-bold tabular-nums text-ink;
+  }
+
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-semibold
+      transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-150 ease-out
+      active:scale-[0.97] disabled:pointer-events-none disabled:opacity-45;
+  }
+  .btn-sm { @apply h-8 px-3.5 text-xs; }
+  .btn-lg { @apply h-12 px-7 text-[15px]; }
+  .btn-primary { @apply bg-brand text-white hover:bg-brand-strong; }
+  .btn-accent { @apply bg-accent-strong text-white hover:bg-[#7f4a07]; }
+  .btn-secondary { @apply border border-line-strong bg-surface text-ink hover:border-ink/40 hover:bg-surface-2; }
+  .btn-ghost { @apply text-ink-2 hover:bg-surface-2 hover:text-ink; }
+  .btn-danger { @apply border border-danger/30 bg-surface text-danger hover:bg-danger-soft; }
+  .icon-btn {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-full text-ink-2 transition-colors duration-150
+      hover:bg-surface-2 hover:text-ink disabled:pointer-events-none disabled:opacity-40;
+  }
+
+  /* Form controls */
+  .label { @apply mb-1.5 block text-sm font-medium text-ink-2; }
+  .input {
+    @apply h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 text-sm text-ink placeholder:text-muted/70
+      transition-[border-color,box-shadow] duration-150 outline-none
+      focus:border-brand focus:ring-4 focus:ring-brand/10
+      aria-[invalid=true]:border-danger aria-[invalid=true]:focus:ring-danger/10
+      disabled:bg-surface-2 disabled:text-muted;
+  }
+  textarea.input { @apply h-auto py-2.5 leading-relaxed; }
+  select.input { @apply pr-9; }
+  .field-hint { @apply mt-1.5 text-xs text-muted; }
+  .field-error { @apply mt-1.5 text-xs font-medium text-danger; }
+
+  .badge {
+    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold leading-5;
+  }
+
+  /* Skeletons: a soft sweep rather than a blinking pulse */
+  .skeleton {
+    @apply rounded-md;
+    background: linear-gradient(90deg, #efebe3 0%, #f7f4ee 45%, #efebe3 90%);
+    background-size: 200% 100%;
+    animation: skeleton-sweep 1.3s ease-in-out infinite;
+  }
+
+  .data-row {
+    @apply flex items-baseline justify-between gap-4 border-b border-line py-2.5 text-sm last:border-b-0;
+  }
+  .data-row > dt { @apply text-muted; }
+  .data-row > dd { @apply text-right font-medium text-ink; }
 }
 
-/* Elegant serif for the VASTRA wordmark and large hero headlines */
-.font-serif-display {
-  font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+@keyframes skeleton-sweep {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
 }
-
-::selection {
-  background-color: #a7f3d0;
-  color: #064e3b;
-}
-
-/* Hero: drifting fabric swatches (replaces flat blur-orb background) */
-.fabric-swatch {
-  position: absolute;
-  border-radius: 1.25rem;
-  will-change: transform;
-  box-shadow: 0 8px 30px -8px rgba(0, 0, 0, 0.35);
-}
-
-@keyframes fabricDriftA {
-  0% { transform: translate3d(-6%, -10%, 0) rotate(-10deg); }
-  100% { transform: translate3d(9%, 12%, 0) rotate(4deg); }
-}
-@keyframes fabricDriftB {
-  0% { transform: translate3d(8%, -8%, 0) rotate(8deg); }
-  100% { transform: translate3d(-10%, 11%, 0) rotate(-6deg); }
-}
-@keyframes fabricDriftC {
-  0% { transform: translate3d(-9%, 9%, 0) rotate(3deg); }
-  100% { transform: translate3d(10%, -10%, 0) rotate(-9deg); }
-}
-@keyframes fabricDriftD {
-  0% { transform: translate3d(6%, 10%, 0) rotate(-4deg); }
-  100% { transform: translate3d(-8%, -9%, 0) rotate(10deg); }
-}
-
-.fabric-anim-a { animation: fabricDriftA 16s ease-in-out infinite alternate; }
-.fabric-anim-b { animation: fabricDriftB 20s ease-in-out infinite alternate; }
-.fabric-anim-c { animation: fabricDriftC 24s ease-in-out infinite alternate; }
-.fabric-anim-d { animation: fabricDriftD 18s ease-in-out infinite alternate; }
 
 @media (prefers-reduced-motion: reduce) {
-  .fabric-anim-a, .fabric-anim-b, .fabric-anim-c, .fabric-anim-d {
-    animation: none;
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

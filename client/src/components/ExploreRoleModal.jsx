@@ -1,93 +1,81 @@
 import { useNavigate } from 'react-router-dom';
+import { ShoppingBagIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
+import { ArrowRightIcon } from '@heroicons/react/20/solid';
 import { useBuyerAuth } from '../context/BuyerAuthContext';
-import { ShoppingBagIcon, BuildingStorefrontIcon, XMarkIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import Dialog from './ui/Dialog';
 
 /**
- * Shown after the landing page's "Explore Textile" / "Sign In" buttons are
- * clicked. Buyers go straight into the public marketplace, no login
- * required. Suppliers must authenticate first, so they're sent to the
- * supplier login.
+ * Shown after the landing page's "Explore Textile" / "Sign in" buttons.
+ * Buyers go straight into the public marketplace, no login required.
+ * Suppliers must authenticate first, so they're sent to the supplier login.
  */
-function ExploreRoleModal({ onClose }) {
+function ExploreRoleModal({ open, onClose }) {
   const navigate = useNavigate();
-  const { isLoggedIn, logout } = useBuyerAuth();
+  const { user, isLoggedIn, logout } = useBuyerAuth();
 
-  const chooseBuyer = () => {
-    // "I'm a Buyer" here means guest browsing, not an authenticated
-    // session — if a stale/previous buyer session is still sitting in
-    // localStorage, clear it so the navbar doesn't show as logged in
-    // (with email/logout) when the person never actually signed in.
+  const go = (path) => {
+    onClose();
+    navigate(path);
+  };
+
+  // "Browse as a guest" means no buyer session in the navbar — if someone else
+  // was signed in on this browser, sign them out first.
+  const browseAsGuest = () => {
     if (isLoggedIn) logout();
-    localStorage.setItem('currentRole', 'buyer');
-    onClose();
-    navigate('/home');
+    go('/home');
   };
 
-  const chooseSupplier = () => {
-    // Suppliers must authenticate before doing anything else.
-    localStorage.setItem('currentRole', 'supplier');
-    onClose();
-    navigate('/supplier/login');
-  };
+  const optionClass =
+    'group flex w-full items-center gap-4 rounded-2xl border border-line bg-surface p-4 text-left transition-colors hover:border-ink/40 focus-visible:border-ink';
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-emerald-950/60 backdrop-blur-sm px-4"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded-3xl overflow-hidden max-w-lg w-full shadow-2xl p-8 relative"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
-        >
-          <XMarkIcon className="w-4 h-4" />
+    <Dialog open={open} onClose={onClose} title="How would you like to continue?" description="Browse as a buyer right away, or sign in to manage your supplier listings.">
+      <div className="space-y-3">
+        {isLoggedIn ? (
+          <button type="button" data-autofocus onClick={() => go('/home')} className={optionClass}>
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <ShoppingBagIcon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display font-bold text-ink">Continue as a buyer</span>
+              <span className="block truncate text-sm text-muted">Signed in as {user?.email}</span>
+            </span>
+            <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
+          </button>
+        ) : (
+          <button type="button" data-autofocus onClick={browseAsGuest} className={optionClass}>
+            <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
+              <ShoppingBagIcon className="h-5 w-5" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-display font-bold text-ink">I’m a buyer</span>
+              <span className="block text-sm text-muted">Browse the marketplace — no account needed.</span>
+            </span>
+            <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
+          </button>
+        )}
+
+        <button type="button" onClick={() => go('/supplier/login')} className={optionClass}>
+          <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
+            <BuildingStorefrontIcon className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-display font-bold text-ink">I’m a supplier</span>
+            <span className="block text-sm text-muted">Sign in to manage listings, quotes and orders.</span>
+          </span>
+          <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
         </button>
-
-        <h2 className="font-serif-display text-2xl md:text-3xl font-bold text-slate-900 text-center">How would you like to continue?</h2>
-        <p className="text-slate-500 text-sm text-center mt-2">Choose how you'd like to explore VASTRA.</p>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-          <button
-            type="button"
-            onClick={chooseBuyer}
-            className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200 hover:border-emerald-600 bg-white px-6 py-8 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-          >
-            <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center group-hover:bg-emerald-100 transition-colors">
-              <ShoppingBagIcon className="w-7 h-7 text-emerald-700" />
-            </div>
-            <div className="text-center">
-              <p className="font-display font-bold text-slate-900">I'm a Buyer</p>
-              <p className="text-xs text-slate-500 mt-1">Browse the marketplace instantly — no login needed.</p>
-            </div>
-            <span className="flex items-center gap-1 text-sm font-semibold text-emerald-700 mt-1">
-              Continue <ArrowRightIcon className="w-3.5 h-3.5" />
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={chooseSupplier}
-            className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-slate-200 hover:border-amber-500 bg-white px-6 py-8 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg"
-          >
-            <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center group-hover:bg-amber-100 transition-colors">
-              <BuildingStorefrontIcon className="w-7 h-7 text-amber-600" />
-            </div>
-            <div className="text-center">
-              <p className="font-display font-bold text-slate-900">I'm a Supplier</p>
-              <p className="text-xs text-slate-500 mt-1">Sign in to manage your listings and orders.</p>
-            </div>
-            <span className="flex items-center gap-1 text-sm font-semibold text-amber-700 mt-1">
-              Sign in <ArrowRightIcon className="w-3.5 h-3.5" />
-            </span>
-          </button>
-        </div>
       </div>
-    </div>
+
+      {isLoggedIn && (
+        <p className="mt-5 text-center text-sm text-muted">
+          Not you?{' '}
+          <button type="button" onClick={browseAsGuest} className="font-semibold text-ink hover:underline">
+            Sign out and browse as a guest
+          </button>
+        </p>
+      )}
+    </Dialog>
   );
 }
 

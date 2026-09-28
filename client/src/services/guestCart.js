@@ -47,5 +47,3 @@ export const removeGuestItem = (productId) => {
 export const clearGuestCart = () => {
   localStorage.removeItem(GUEST_CART_KEY);
 };
-
-export const guestCartCount = () => readRaw().reduce((sum, item) => sum + item.quantity, 0);

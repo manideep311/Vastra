@@ -2,14 +2,33 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { submitOnboarding } from '../../services/buyerService';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
-import { SparklesIcon } from '@heroicons/react/24/outline';
+import { OnboardingShell, ChoiceChips } from '../../components/OnboardingShell';
+import { InlineError, Spinner } from '../../components/ui/States';
+import { getErrorMessage } from '../../utils/errors';
 
-const FABRIC_OPTIONS = ['Cotton', 'Linen', 'Silk', 'Wool', 'Polyester', 'Organic Cotton'];
+const FABRIC_OPTIONS = ['Cotton', 'Linen', 'Silk', 'Wool', 'Polyester', 'Organic Cotton', 'Denim', 'Blended'];
 const CATEGORY_OPTIONS = ['Apparel', 'Home Textiles', 'Industrial', 'Accessories'];
 const BUSINESS_TYPES = ['Retailer', 'Manufacturer', 'Wholesaler', 'Distributor', 'Boutique', 'E-commerce Brand', 'Other'];
 const INDUSTRIES = ['Fashion', 'Home Goods', 'Automotive', 'Industrial', 'Hospitality', 'Other'];
-const ORDER_QUANTITIES = ['Under 100 units', '100-500 units', '500-1000 units', '1000-5000 units', '5000+ units'];
-const BUDGET_RANGES = ['Under $1,000', '$1,000-$5,000', '$5,000-$10,000', '$10,000-$50,000', '$50,000+'];
+const ORDER_QUANTITIES = ['Under 100 units', '100–500 units', '500–1,000 units', '1,000–5,000 units', '5,000+ units'];
+const BUDGET_RANGES = ['Under ₹1 lakh', '₹1–5 lakh', '₹5–10 lakh', '₹10–50 lakh', '₹50 lakh+'];
+
+function Select({ id, label, value, options, onChange }) {
+  return (
+    <div>
+      <label htmlFor={id} className="label">
+        {label}
+      </label>
+      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className="input">
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
 
 function OnboardingPage() {
   const [form, setForm] = useState({
@@ -21,141 +40,60 @@ function OnboardingPage() {
     budgetRange: BUDGET_RANGES[0],
   });
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
   const { updateProfile } = useBuyerAuth();
 
-  const toggleValue = (field, value) => {
-    setForm((prev) => ({
-      ...prev,
-      [field]: prev[field].includes(value) ? prev[field].filter((v) => v !== value) : [...prev[field], value],
-    }));
-  };
+  const setField = (field) => (value) => setForm((f) => ({ ...f, [field]: value }));
+  const toggle = (field) => (value) =>
+    setForm((f) => ({ ...f, [field]: f[field].includes(value) ? f[field].filter((v) => v !== value) : [...f[field], value] }));
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    setError('');
     setSubmitting(true);
     try {
       await submitOnboarding(form);
       updateProfile({ onboardingComplete: true });
-      navigate('/home');
+      navigate('/home', { replace: true });
     } catch (err) {
-      console.error(err);
-    } finally {
+      setError(getErrorMessage(err, "We couldn't save your preferences."));
       setSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-[#fdfbf8] flex items-center justify-center px-4 py-12">
-      <div className="absolute -top-32 -left-32 w-96 h-96 bg-emerald-200/40 rounded-full blur-3xl" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-200/40 rounded-full blur-3xl" />
-      <form onSubmit={handleSubmit} className="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-xl shadow-emerald-900/5 border border-slate-200/70 p-8 max-w-lg w-full space-y-6">
-        <div>
-          <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full mb-3">
-            <SparklesIcon className="w-3.5 h-3.5" />
-            One quick step
-          </span>
-          <h1 className="font-display text-2xl font-extrabold text-slate-900">Tell us about your business</h1>
-          <p className="text-slate-500 text-sm mt-1">This helps us personalize product recommendations for you.</p>
+    <OnboardingShell
+      step="Buyer setup · 1 minute"
+      title="Tell us about your business"
+      description="We use this to recommend fabrics and suppliers that fit what you make. You can skip it and browse right away."
+    >
+      <form onSubmit={handleSubmit} className="card space-y-6 p-6 sm:p-8">
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Select id="ob-type" label="Business type" value={form.businessType} options={BUSINESS_TYPES} onChange={setField('businessType')} />
+          <Select id="ob-industry" label="Industry" value={form.industry} options={INDUSTRIES} onChange={setField('industry')} />
+        </div>
+        <ChoiceChips legend="What do you make?" options={CATEGORY_OPTIONS} selected={form.categoriesOfInterest} onToggle={toggle('categoriesOfInterest')} />
+        <ChoiceChips legend="Fabrics you usually buy" hint="Pick as many as apply." options={FABRIC_OPTIONS} selected={form.preferredFabricTypes} onToggle={toggle('preferredFabricTypes')} />
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Select id="ob-qty" label="Typical order size" value={form.typicalOrderQuantity} options={ORDER_QUANTITIES} onChange={setField('typicalOrderQuantity')} />
+          <Select id="ob-budget" label="Budget per order" value={form.budgetRange} options={BUDGET_RANGES} onChange={setField('budgetRange')} />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Business Type</label>
-          <select
-            value={form.businessType}
-            onChange={(e) => setForm({ ...form, businessType: e.target.value })}
-            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-          >
-            {BUSINESS_TYPES.map((type) => (
-              <option key={type} value={type}>{type}</option>
-            ))}
-          </select>
-        </div>
+        <InlineError>{error}</InlineError>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Industry</label>
-          <select
-            value={form.industry}
-            onChange={(e) => setForm({ ...form, industry: e.target.value })}
-            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-          >
-            {INDUSTRIES.map((ind) => (
-              <option key={ind} value={ind}>{ind}</option>
-            ))}
-          </select>
+        <div className="flex flex-col-reverse gap-2 border-t border-line pt-6 sm:flex-row sm:justify-end">
+          <button type="button" onClick={() => navigate('/home', { replace: true })} disabled={submitting} className="btn btn-ghost">
+            Skip for now
+          </button>
+          <button type="submit" disabled={submitting} className="btn btn-primary">
+            {submitting && <Spinner />}
+            {submitting ? 'Saving…' : 'Save and start sourcing'}
+          </button>
         </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Product Categories of Interest</label>
-          <div className="flex gap-2 flex-wrap">
-            {CATEGORY_OPTIONS.map((cat) => (
-              <button
-                type="button"
-                key={cat}
-                onClick={() => toggleValue('categoriesOfInterest', cat)}
-                className={`px-3.5 py-1.5 rounded-full text-sm border transition-all duration-200 ${
-                  form.categoriesOfInterest.includes(cat) ? 'bg-emerald-700 text-white border-emerald-700 shadow-sm shadow-emerald-700/20' : 'border-slate-200 text-slate-600 hover:border-emerald-300'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-2">Preferred Fabric Types</label>
-          <div className="flex gap-2 flex-wrap">
-            {FABRIC_OPTIONS.map((fabric) => (
-              <button
-                type="button"
-                key={fabric}
-                onClick={() => toggleValue('preferredFabricTypes', fabric)}
-                className={`px-3.5 py-1.5 rounded-full text-sm border transition-all duration-200 ${
-                  form.preferredFabricTypes.includes(fabric) ? 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/20' : 'border-slate-200 text-slate-600 hover:border-amber-300'
-                }`}
-              >
-                {fabric}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Typical Order Quantity</label>
-          <select
-            value={form.typicalOrderQuantity}
-            onChange={(e) => setForm({ ...form, typicalOrderQuantity: e.target.value })}
-            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-          >
-            {ORDER_QUANTITIES.map((qty) => (
-              <option key={qty} value={qty}>{qty}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Budget Range</label>
-          <select
-            value={form.budgetRange}
-            onChange={(e) => setForm({ ...form, budgetRange: e.target.value })}
-            className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-shadow"
-          >
-            {BUDGET_RANGES.map((range) => (
-              <option key={range} value={range}>{range}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full bg-gradient-to-r from-emerald-700 to-emerald-800 text-white py-3 rounded-full font-semibold transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-[1.01] active:scale-95 disabled:opacity-50"
-        >
-          {submitting ? 'Saving...' : 'Continue to Marketplace'}
-        </button>
       </form>
-    </div>
+    </OnboardingShell>
   );
 }
 

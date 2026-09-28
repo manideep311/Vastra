@@ -1,132 +1,171 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRightStartOnRectangleIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
+import { ClipboardDocumentListIcon, DocumentTextIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { getBuyerProfile } from '../../services/buyerService';
 import { getMyOrders } from '../../services/orderService';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
-import { ShoppingBagIcon, ClockIcon, UserCircleIcon, ClipboardDocumentListIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { ErrorState, Skeleton } from '../../components/ui/States';
+import { formatINR } from '../../utils/pricing';
+import { getErrorMessage } from '../../utils/errors';
 
-const STATUS_COLORS = {
-  pending: 'bg-amber-50 text-amber-700',
-  accepted: 'bg-blue-50 text-blue-700',
-  preparing: 'bg-purple-50 text-purple-700',
-  ready_for_dispatch: 'bg-indigo-50 text-indigo-700',
-  completed: 'bg-emerald-50 text-emerald-700',
-};
+const QUICK_LINKS = [
+  { to: '/orders', label: 'Orders', hint: 'Track supplier orders', icon: ClipboardDocumentListIcon },
+  { to: '/quotes', label: 'Quotes', hint: 'Bulk price requests', icon: DocumentTextIcon },
+  { to: '/wishlist', label: 'Wishlist', hint: 'Saved fabrics', icon: HeartIcon },
+];
 
 function DashboardPage() {
   const { user, logout } = useBuyerAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
+  const [status, setStatus] = useState('loading');
+  const [error, setError] = useState('');
+
+  const load = useCallback(async () => {
+    setStatus('loading');
+    try {
+      const [orderData, profileData] = await Promise.all([getMyOrders(), getBuyerProfile().catch(() => null)]);
+      setOrders(orderData.orders);
+      setProfile(profileData?.profile || null);
+      setStatus('ready');
+    } catch (err) {
+      setError(getErrorMessage(err, "We couldn't load your account."));
+      setStatus('error');
+    }
+  }, []);
 
   useEffect(() => {
-    getBuyerProfile().then((data) => setProfile(data.profile)).catch(() => setProfile(null));
-    getMyOrders().then((data) => setOrders(data.orders));
-  }, []);
+    load();
+  }, [load]);
 
   const handleLogout = () => {
     logout();
     navigate('/home');
   };
 
-  const activeOrders = orders.filter((o) => o.status !== 'completed').length;
-  const recentOrders = orders.slice(0, 5);
+  const active = orders.filter((o) => o.status !== 'completed').length;
+  const spent = orders.reduce((sum, o) => sum + o.total, 0);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display text-2xl font-bold text-slate-900">Dashboard</h1>
-        <button
-          onClick={handleLogout}
-          className="md:hidden flex items-center gap-1.5 text-sm bg-emerald-950 text-white px-4 py-2 rounded-full hover:bg-emerald-900 transition-all duration-200 hover:scale-105 active:scale-95"
-        >
-          <ArrowRightOnRectangleIcon className="w-4 h-4" />
-          Logout
+    <div className="mx-auto max-w-4xl">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Buyer account</p>
+          <h1 className="page-title mt-1 break-all">{user?.email}</h1>
+        </div>
+        <button type="button" onClick={handleLogout} className="btn btn-secondary btn-sm">
+          <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+          Log out
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
-            <ShoppingBagIcon className="w-5 h-5 text-emerald-700" />
-          </div>
-          <p className="text-slate-400 text-sm">Total Orders</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{orders.length}</p>
-        </div>
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-3">
-            <ClockIcon className="w-5 h-5 text-amber-600" />
-          </div>
-          <p className="text-slate-400 text-sm">Active Orders</p>
-          <p className="text-3xl font-bold text-slate-900 mt-1">{activeOrders}</p>
-        </div>
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-3">
-            <UserCircleIcon className="w-5 h-5 text-emerald-800" />
-          </div>
-          <p className="text-slate-400 text-sm">Account</p>
-          <p className="text-sm font-semibold text-slate-900 mt-1 truncate">{user?.email}</p>
-        </div>
-      </div>
+      {status === 'error' ? (
+        <ErrorState message={error} onRetry={load} />
+      ) : (
+        <>
+          <dl className="mt-8 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line bg-surface">
+            {[
+              ['Orders placed', orders.length],
+              ['In progress', active],
+              ['Total ordered', formatINR(spent)],
+            ].map(([label, value]) => (
+              <div key={label} className="px-4 py-4 sm:px-6">
+                <dt className="text-xs text-muted">{label}</dt>
+                <dd className="mt-1 font-display text-lg font-bold tabular-nums text-ink sm:text-xl">
+                  {status === 'loading' ? <Skeleton className="h-6 w-12" /> : value}
+                </dd>
+              </div>
+            ))}
+          </dl>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Activity timeline */}
-        <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center gap-2 mb-5">
-            <ClipboardDocumentListIcon className="w-5 h-5 text-emerald-700" />
-            <h2 className="font-semibold text-slate-800">Recent Activity</h2>
-          </div>
-          {recentOrders.length === 0 ? (
-            <p className="text-slate-400 text-sm">No orders yet.</p>
-          ) : (
-            <div className="relative space-y-6 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-px before:bg-slate-200">
-              {recentOrders.map((order) => (
-                <div key={order._id} className="relative pl-6">
-                  <span className="absolute left-0 top-1 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-emerald-50" />
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">Order #{order._id.slice(-6)}</p>
-                      <p className="text-xs text-slate-400">{new Date(order.createdAt).toLocaleDateString()} — ₹{order.total.toFixed(2)}</p>
+          <nav aria-label="Account" className="mt-6 grid gap-3 sm:grid-cols-3">
+            {QUICK_LINKS.map((link) => (
+              <Link key={link.to} to={link.to} className="group flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong">
+                <link.icon className="h-5 w-5 text-brand" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold text-ink">{link.label}</span>
+                  <span className="block text-xs text-muted">{link.hint}</span>
+                </span>
+                <ChevronRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            ))}
+          </nav>
+
+          <div className="mt-10 grid gap-10 lg:grid-cols-5">
+            <section className="lg:col-span-3" aria-labelledby="recent-orders">
+              <div className="flex items-baseline justify-between">
+                <h2 id="recent-orders" className="section-title">
+                  Recent orders
+                </h2>
+                {orders.length > 0 && (
+                  <Link to="/orders" className="text-sm font-semibold text-brand hover:underline">
+                    View all
+                  </Link>
+                )}
+              </div>
+              {status === 'loading' ? (
+                <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+              ) : orders.length === 0 ? (
+                <p className="mt-4 rounded-2xl border border-dashed border-line-strong px-6 py-8 text-center text-sm text-muted">
+                  No orders yet.{' '}
+                  <Link to="/products" className="font-semibold text-brand hover:underline">
+                    Start sourcing
+                  </Link>
+                </p>
+              ) : (
+                <ul className="mt-3 divide-y divide-line">
+                  {orders.slice(0, 5).map((order) => (
+                    <li key={order._id} className="flex items-center justify-between gap-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-ink">#{order._id.slice(-6).toUpperCase()}</p>
+                        <p className="truncate text-xs text-muted">
+                          {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} · {order.items.length} item
+                          {order.items.length === 1 ? '' : 's'} · {formatINR(order.total)}
+                        </p>
+                      </div>
+                      <StatusBadge status={order.status} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="lg:col-span-2" aria-labelledby="business-profile">
+              <h2 id="business-profile" className="section-title">
+                Business profile
+              </h2>
+              {status === 'loading' ? (
+                <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+              ) : profile ? (
+                <dl className="mt-3">
+                  {[
+                    ['Business type', profile.businessType],
+                    ['Industry', profile.industry],
+                    ['Preferred fabrics', profile.preferredFabricTypes?.join(', ')],
+                    ['Typical order', profile.typicalOrderQuantity],
+                    ['Budget', profile.budgetRange],
+                  ].map(([label, value]) => (
+                    <div key={label} className="data-row">
+                      <dt>{label}</dt>
+                      <dd>{value || '—'}</dd>
                     </div>
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_COLORS[order.status]}`}>
-                      {order.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {orders.length > 5 && (
-            <Link to="/orders" className="block text-center text-sm text-emerald-800 font-medium mt-6 hover:text-emerald-900 transition-colors">
-              View all orders →
-            </Link>
-          )}
-        </div>
-
-        {profile && (
-          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 shadow-sm">
-            <h2 className="font-semibold text-slate-800 mb-5">Your Profile</h2>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b border-slate-100 pb-2.5">
-                <span className="text-slate-400">Business Type</span>
-                <span className="font-medium text-slate-800">{profile.businessType || '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2.5">
-                <span className="text-slate-400">Industry</span>
-                <span className="font-medium text-slate-800">{profile.industry || '—'}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-2.5">
-                <span className="text-slate-400">Preferred Fabrics</span>
-                <span className="font-medium text-slate-800 text-right">{profile.preferredFabricTypes?.join(', ') || '—'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-400">Budget Range</span>
-                <span className="font-medium text-slate-800">{profile.budgetRange || '—'}</span>
-              </div>
-            </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="mt-3 text-sm text-muted">
+                  Tell us about your business to get better recommendations.{' '}
+                  <Link to="/buyer/onboarding" className="font-semibold text-brand hover:underline">
+                    Complete profile
+                  </Link>
+                </p>
+              )}
+            </section>
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

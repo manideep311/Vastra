@@ -9,14 +9,11 @@ import { useSupplierAuth } from '../context/SupplierAuthContext';
  *     <Route path="/checkout" element={<CheckoutPage />} />
  *   </Route>
  *
+ * This is navigation UX only — the API enforces the same rules server-side.
  * Buyer and Supplier auth are fully separate sessions, so this only ever
- * checks the one relevant to `role`:
- * - Not logged in as `role`  -> redirect to `loginPath`, remembering the
- *   page they wanted so the login page can send them back afterwards.
- * - Logged in as `role`      -> render the nested routes via <Outlet />.
- *
- * A Supplier session being active never grants access to Buyer-protected
- * routes, and vice versa — each guard only looks at its own role's session.
+ * checks the one relevant to `role`: a Supplier session never grants access
+ * to Buyer routes, and vice versa. Not signed in -> redirect to `loginPath`,
+ * remembering where they were headed.
  */
 function RoleRoute({ role, loginPath }) {
   const { isLoggedIn: isBuyerLoggedIn } = useBuyerAuth();
@@ -26,7 +23,7 @@ function RoleRoute({ role, loginPath }) {
   const isLoggedIn = role === 'supplier' ? isSupplierLoggedIn : isBuyerLoggedIn;
 
   if (!isLoggedIn) {
-    return <Navigate to={loginPath} state={{ from: location.pathname }} replace />;
+    return <Navigate to={loginPath} state={{ from: location.pathname + location.search }} replace />;
   }
 
   return <Outlet />;

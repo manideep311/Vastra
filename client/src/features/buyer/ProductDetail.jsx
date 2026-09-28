@@ -1,41 +1,69 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useId, useMemo, useState } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { ChevronRightIcon, CheckBadgeIcon, StarIcon, MapPinIcon } from '@heroicons/react/20/solid';
+import { DocumentTextIcon, CubeIcon, TruckIcon, ScaleIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 import { getProductById } from '../../services/productService';
 import { addToCart } from '../../services/cartService';
 import { getSimilarProducts } from '../../services/aiService';
 import { requestQuote } from '../../services/quoteService';
 import { getProductReviews, submitReview } from '../../services/reviewService';
-import { getImageUrl } from '../../utils/config';
-import { useWishlist } from '../../context/WishlistContext';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
-import { unitAllowsDecimals, pluralizeUnit } from '../../utils/units';
+import { useProductActions } from '../../hooks/useProductActions';
+import { useToast } from '../../components/ui/Toast';
 import ProductCard from '../../components/ProductCard';
-import {
-  ArrowLeftIcon,
-  HeartIcon as HeartOutlineIcon,
-  DocumentTextIcon,
-  XMarkIcon,
-} from '@heroicons/react/24/outline';
-import { HeartIcon, StarIcon } from '@heroicons/react/24/solid';
+import ProductImage from '../../components/ui/ProductImage';
+import Dialog from '../../components/ui/Dialog';
+import QuantityStepper from '../../components/ui/QuantityStepper';
+import WishlistButton from '../../components/product/WishlistButton';
+import StockIndicator from '../../components/product/StockIndicator';
+import { stockLevel } from '../../utils/stock';
+import { EmptyState, ErrorState, InlineError, Skeleton, Spinner } from '../../components/ui/States';
+import { unitAllowsDecimals, pluralizeUnit } from '../../utils/units';
+import { effectiveMoq, formatINR, formatQuantity, getEffectivePrice } from '../../utils/pricing';
+import { getErrorMessage } from '../../utils/errors';
 
-// Strips characters that aren't valid for the current unit's quantity input
-// (whole numbers only unless the unit is commonly sold in fractions).
-function sanitizeQuantityInput(value, allowDecimals) {
-  let v = value.replace(/[^\d.]/g, '');
-  if (!allowDecimals) v = v.replace(/\./g, '');
-  const parts = v.split('.');
-  if (parts.length > 2) v = parts[0] + '.' + parts.slice(1).join('');
-  return v;
+function Stars({ value, className = 'h-4 w-4' }) {
+  return (
+    <span className="inline-flex" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <StarIcon key={n} className={`${className} ${n <= Math.round(value) ? 'text-accent' : 'text-line-strong'}`} />
+      ))}
+    </span>
+  );
 }
 
-function StarRow({ value, onChange }) {
+// Radio-group star picker: arrow keys work, and screen readers hear "4 stars".
+function StarInput({ value, onChange }) {
   return (
-    <div className="flex gap-1">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button key={n} type="button" onClick={() => onChange?.(n)} disabled={!onChange}>
-          <StarIcon className={`w-5 h-5 ${n <= value ? 'text-amber-400' : 'text-slate-200'}`} />
-        </button>
-      ))}
+    <fieldset>
+      <legend className="label">Your rating</legend>
+      <div className="flex gap-1">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <label key={n} className="cursor-pointer rounded p-0.5 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-brand">
+            <input type="radio" name="rating" value={n} checked={value === n} onChange={() => onChange(n)} className="sr-only" />
+            <StarIcon className={`h-7 w-7 transition-colors ${n <= value ? 'text-accent' : 'text-line-strong hover:text-accent/50'}`} aria-hidden="true" />
+            <span className="sr-only">
+              {n} star{n > 1 ? 's' : ''}
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function DetailSkeleton() {
+  return (
+    <div className="grid gap-10 lg:grid-cols-12" aria-busy="true" aria-label="Loading product">
+      <Skeleton className="aspect-square w-full rounded-3xl lg:col-span-7" />
+      <div className="space-y-4 lg:col-span-5">
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-9 w-4/5" />
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="mt-6 h-10 w-40" />
+        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton className="h-12 w-full rounded-full" />
+      </div>
     </div>
   );
 }
@@ -43,490 +71,613 @@ function StarRow({ value, onChange }) {
 function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const toast = useToast();
   const { isLoggedIn } = useBuyerAuth();
-  const wishlist = useWishlist();
-  const [product, setProduct] = useState(null);
-  const [similar, setSimilar] = useState([]);
-  const [quantityInput, setQuantityInput] = useState('1');
-  const [selectedColor, setSelectedColor] = useState('');
-  const [activeImage, setActiveImage] = useState(0);
-  const [toast, setToast] = useState('');
-  const [loading, setLoading] = useState(true);
+  const { quickAdd, onToggleWishlist, wishlistIds } = useProductActions();
+  const quantityHelpId = useId();
 
-  // Redirects a guest to the buyer login and returns them to this page.
-  // Returns false (and redirects) when the buyer isn't logged in yet.
-  const requireBuyerLogin = () => {
-    if (!isLoggedIn) {
-      navigate('/buyer/login', { state: { from: `/products/${id}` } });
-      return false;
-    }
-    return true;
-  };
+  const [product, setProduct] = useState(null);
+  const [status, setStatus] = useState('loading'); // loading | ready | notfound | error
+  const [loadError, setLoadError] = useState('');
+  const [activeImage, setActiveImage] = useState(0);
+  const [selectedColor, setSelectedColor] = useState('');
+  const [quantityInput, setQuantityInput] = useState('1');
+  const [adding, setAdding] = useState(false);
+  const [similar, setSimilar] = useState([]);
+  const [reviews, setReviews] = useState({ list: [], average: 0, count: 0 });
 
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteForm, setQuoteForm] = useState({ requestedQuantity: '', targetPrice: '', message: '' });
+  const [quoteError, setQuoteError] = useState('');
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
 
-  const [reviews, setReviews] = useState([]);
-  const [ratingAverage, setRatingAverage] = useState(0);
-  const [ratingCount, setRatingCount] = useState(0);
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  useEffect(() => {
-    setLoading(true);
-    getProductById(id).then((data) => {
-      setProduct(data.product);
-      setSelectedColor(data.product.colors?.[0] || '');
-      setActiveImage(0);
-      // Start at the minimum order quantity when one is set, so the buyer
-      // isn't immediately shown a "below minimum" error on page load.
-      setQuantityInput(String(data.product.moq > 1 ? data.product.moq : 1));
-      setLoading(false);
-    });
-    getSimilarProducts(id)
-      .then((data) => setSimilar(data.results))
-      .catch(() => setSimilar([]));
-    fetchReviews();
-  }, [id]);
+  const loadReviews = useCallback(
+    (signal) =>
+      getProductReviews(id, { signal })
+        .then((data) => setReviews({ list: data.reviews, average: data.ratingAverage, count: data.ratingCount }))
+        .catch(() => {}),
+    [id]
+  );
 
-  const fetchReviews = () => {
-    getProductReviews(id)
-      .then((data) => {
-        setReviews(data.reviews);
-        setRatingAverage(data.ratingAverage);
-        setRatingCount(data.ratingCount);
-      })
-      .catch(() => {});
+  // Product, similar items and reviews load in parallel; switching products
+  // cancels anything still in flight for the previous one.
+  const load = useCallback(
+    (signal) => {
+      setStatus('loading');
+      setSimilar([]);
+      getProductById(id, { signal })
+        .then(({ product: p }) => {
+          setProduct(p);
+          setActiveImage(0);
+          setSelectedColor(p.colors?.[0] || '');
+          setQuantityInput(String(effectiveMoq(p)));
+          setStatus('ready');
+        })
+        .catch((err) => {
+          if (err.code === 'ERR_CANCELED') return;
+          if (err.response?.status === 404 || err.response?.status === 400) {
+            setStatus('notfound');
+          } else {
+            setLoadError(getErrorMessage(err, "We couldn't load this product."));
+            setStatus('error');
+          }
+        });
+      getSimilarProducts(id, { signal })
+        .then((data) => setSimilar(data.results.slice(0, 4)))
+        .catch(() => {});
+      loadReviews(signal);
+    },
+    [id, loadReviews]
+  );
+
+  useEffect(() => {
+    const controller = new AbortController();
+    load(controller.signal);
+    return () => controller.abort();
+  }, [load]);
+
+  const requireBuyerLogin = () => {
+    if (isLoggedIn) return true;
+    navigate('/buyer/login', { state: { from: location.pathname } });
+    return false;
   };
 
-  // Quantity input validation: numeric only, no decimals unless the
-  // product's unit (kg/meter) is commonly sold in fractional amounts, and
-  // never below the product's minimum order quantity (moq) when it has one.
+  // --- Quantity & pricing -------------------------------------------------
+  const unit = product?.unit || 'unit';
   const allowDecimals = unitAllowsDecimals(product?.unit);
-  const moq = product?.moq > 1 ? product.moq : 1;
+  const moq = effectiveMoq(product);
   const numericQuantity = Number(quantityInput);
   const isWellFormed =
-    quantityInput !== '' &&
-    !Number.isNaN(numericQuantity) &&
-    numericQuantity >= 1 &&
-    (allowDecimals || Number.isInteger(numericQuantity));
+    quantityInput !== '' && Number.isFinite(numericQuantity) && numericQuantity > 0 && (allowDecimals || Number.isInteger(numericQuantity));
   const belowMoq = isWellFormed && numericQuantity < moq;
-  const isQuantityValid = isWellFormed && !belowMoq;
-  const effectiveQuantity = isQuantityValid ? numericQuantity : 0;
-  const totalPrice = useMemo(() => (product ? product.price * effectiveQuantity : 0), [product, effectiveQuantity]);
+  const overStock = isWellFormed && product && numericQuantity > product.stock;
+  const isQuantityValid = isWellFormed && !belowMoq && !overStock;
 
-  const handleQuantityChange = (e) => {
-    setQuantityInput(sanitizeQuantityInput(e.target.value, allowDecimals));
-  };
+  const pricing = useMemo(() => {
+    if (!product) return null;
+    const qty = isQuantityValid ? numericQuantity : moq;
+    const unitPrice = getEffectivePrice(product, qty);
+    return { unitPrice, total: unitPrice * qty, tierApplied: unitPrice < product.price };
+  }, [product, isQuantityValid, numericQuantity, moq]);
 
-  const handleQuantityBlur = () => {
-    // Only reset unusable input (empty/NaN/wrong format) back to the
-    // minimum — a well-formed number that's simply below MOQ is left as-is
-    // so the inline error stays visible instead of silently overwriting it.
-    if (!isWellFormed) setQuantityInput(String(moq));
-  };
+  let quantityMessage = moq > 1 ? `Minimum order ${formatQuantity(moq)} ${pluralizeUnit(unit, moq)}` : allowDecimals ? 'Fractional quantities allowed' : 'Whole units only';
+  if (quantityInput !== '' && !isWellFormed) quantityMessage = `Enter a valid quantity${allowDecimals ? '' : ' in whole units'}.`;
+  else if (belowMoq) quantityMessage = `Minimum order is ${formatQuantity(moq)} ${pluralizeUnit(unit, moq)}.`;
+  else if (overStock) quantityMessage = `Only ${formatQuantity(product.stock)} ${pluralizeUnit(unit, product.stock)} in stock — request a quote for larger runs.`;
+  const quantityInvalid = quantityInput === '' || !isQuantityValid;
 
   const handleAddToCart = async () => {
-    if (!isQuantityValid) return;
+    if (!isQuantityValid || adding) return;
+    setAdding(true);
     try {
-      await addToCart(id, effectiveQuantity);
-      setToast(`Added ${effectiveQuantity} ${pluralizeUnit(product.unit, effectiveQuantity)} to cart ✓`);
+      await addToCart(id, numericQuantity);
+      toast.success(`${formatQuantity(numericQuantity)} ${pluralizeUnit(unit, numericQuantity)} added to your cart`, {
+        action: { label: 'View cart', to: '/cart' },
+      });
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to add');
+      toast.error(getErrorMessage(err, "Couldn't add that to your cart."));
     } finally {
-      setTimeout(() => setToast(''), 2200);
+      setAdding(false);
     }
   };
 
-  const handleQuickAdd = async (productId) => {
-    const quickProduct = similar.find((p) => p._id === productId);
-    try {
-      await addToCart(productId, 1);
-      setToast(`Added 1 ${pluralizeUnit(quickProduct?.unit, 1)} to cart ✓`);
-    } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to add');
-    } finally {
-      setTimeout(() => setToast(''), 2200);
-    }
+  // --- Quote ---------------------------------------------------------------
+  const openQuote = () => {
+    if (!requireBuyerLogin()) return;
+    setQuoteError('');
+    setQuoteForm((f) => ({ ...f, requestedQuantity: f.requestedQuantity || String(Math.max(moq, isQuantityValid ? numericQuantity : moq)) }));
+    setQuoteOpen(true);
   };
 
   const handleRequestQuote = async (e) => {
     e.preventDefault();
+    if (quoteSubmitting) return;
+    setQuoteError('');
     setQuoteSubmitting(true);
     try {
       await requestQuote({
         productId: id,
         requestedQuantity: Number(quoteForm.requestedQuantity),
         targetPrice: quoteForm.targetPrice ? Number(quoteForm.targetPrice) : undefined,
-        message: quoteForm.message,
+        message: quoteForm.message.trim() || undefined,
       });
-      setToast('Quote request sent ✓');
       setQuoteOpen(false);
       setQuoteForm({ requestedQuantity: '', targetPrice: '', message: '' });
+      toast.success('Quote request sent to the supplier', { action: { label: 'My quotes', to: '/quotes' } });
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to request quote');
+      setQuoteError(getErrorMessage(err, "Couldn't send your quote request."));
     } finally {
       setQuoteSubmitting(false);
-      setTimeout(() => setToast(''), 2500);
     }
   };
 
+  // --- Review --------------------------------------------------------------
   const handleSubmitReview = async (e) => {
     e.preventDefault();
-    if (!requireBuyerLogin()) return;
+    if (!requireBuyerLogin() || reviewSubmitting) return;
     setReviewSubmitting(true);
     try {
-      await submitReview(id, reviewForm);
-      fetchReviews();
-      setToast('Review submitted ✓');
+      await submitReview(id, { rating: reviewForm.rating, comment: reviewForm.comment.trim() });
+      await loadReviews();
+      setReviewForm({ rating: 5, comment: '' });
+      toast.success('Thanks — your review is live');
     } catch (err) {
-      setToast(err.response?.data?.error || 'Failed to submit review');
+      toast.error(getErrorMessage(err, "Couldn't submit your review."));
     } finally {
       setReviewSubmitting(false);
-      setTimeout(() => setToast(''), 2200);
     }
   };
 
-  if (loading) return <p className="text-slate-400 text-center py-16">Loading...</p>;
-  if (!product) return <p className="text-slate-400 text-center py-16">Product not found.</p>;
+  if (status === 'loading') return <DetailSkeleton />;
+  if (status === 'notfound') {
+    return (
+      <EmptyState
+        icon={Squares2X2Icon}
+        title="This fabric isn't available"
+        description="It may have been removed by the supplier. Browse the catalog for similar fabrics."
+        action={{ label: 'Browse the catalog', to: '/products' }}
+      />
+    );
+  }
+  if (status === 'error') return <ErrorState message={loadError} onRetry={() => load()} />;
 
   const images = product.images?.length > 0 ? product.images : [null];
-  const wishlisted = wishlist?.isWishlisted?.(product._id);
+  const soldOut = stockLevel(product) === 'out';
+  const supplier = product.supplier;
+  const tiers = [...(product.priceTiers || [])].sort((a, b) => a.minQty - b.minQty);
+  const specRows = [
+    ['Composition', product.fabricComposition],
+    ['Weight', product.gsm && `${product.gsm} GSM`],
+    ['Width', product.fabricWidth],
+    ['Roll / piece length', product.rollLength],
+    ['Lead time', product.leadTime],
+    ['Colours', product.colors?.length ? product.colors.join(', ') : null],
+    ...Object.entries(product.specifications || {}).map(([k, v]) => [k, String(v)]),
+  ].filter(([, v]) => v);
 
   return (
     <div>
-      <Link to="/home" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-emerald-800 transition-colors">
-        <ArrowLeftIcon className="w-4 h-4" />
-        Back to marketplace
-      </Link>
+      <nav aria-label="Breadcrumb" className="mb-6">
+        <ol className="flex min-w-0 items-center gap-1 text-sm text-muted">
+          <li>
+            <Link to="/products" className="hover:text-ink">
+              Catalog
+            </Link>
+          </li>
+          <ChevronRightIcon className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <li>
+            <Link to={`/products?category=${encodeURIComponent(product.category)}`} className="hover:text-ink">
+              {product.category}
+            </Link>
+          </li>
+          <ChevronRightIcon className="hidden h-4 w-4 flex-shrink-0 sm:block" aria-hidden="true" />
+          <li className="hidden truncate text-ink-2 sm:block" aria-current="page">
+            {product.name}
+          </li>
+        </ol>
+      </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 mt-6">
-        {/* Image gallery */}
-        <div>
-          <div className="aspect-square bg-gradient-to-br from-slate-100 to-slate-50 rounded-3xl overflow-hidden flex items-center justify-center shadow-sm">
-            {images[activeImage] ? (
-              <img src={getImageUrl(images[activeImage])} alt={product.name} className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-slate-300">No image yet</span>
-            )}
-          </div>
+      <div className="grid gap-8 lg:grid-cols-12 lg:gap-12">
+        {/* Gallery */}
+        <div className="lg:col-span-7">
+          <ProductImage src={images[activeImage]} alt={product.name} eager className="aspect-square w-full rounded-3xl" sizes="(min-width: 1024px) 58vw, 100vw" />
           {images.length > 1 && (
-            <div className="flex gap-3 mt-4">
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Product images">
               {images.map((img, i) => (
                 <button
-                  key={i}
+                  key={img}
+                  type="button"
                   onClick={() => setActiveImage(i)}
-                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all duration-200 ${
-                    activeImage === i ? 'border-emerald-500' : 'border-transparent opacity-70 hover:opacity-100'
+                  aria-label={`Show image ${i + 1} of ${images.length}`}
+                  aria-current={activeImage === i}
+                  className={`flex-shrink-0 overflow-hidden rounded-xl ring-2 ring-offset-2 ring-offset-canvas transition ${
+                    activeImage === i ? 'ring-brand' : 'ring-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={getImageUrl(img)} alt="" className="w-full h-full object-cover" />
+                  <ProductImage src={img} className="h-16 w-16 md:h-20 md:w-20" />
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* Sticky purchase panel */}
-        <div className="lg:sticky lg:top-28 lg:self-start">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">{product.category}</p>
-              <h1 className="font-display text-3xl font-bold text-slate-900 mt-1">{product.name}</h1>
-              {ratingCount > 0 && (
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <StarRow value={Math.round(ratingAverage)} />
-                  <span className="text-sm text-slate-500">{ratingAverage.toFixed(1)} ({ratingCount})</span>
+        {/* Purchase panel */}
+        <div className="lg:col-span-5">
+          <div className="lg:sticky lg:top-24">
+            <p className="eyebrow">{product.category}</p>
+            <div className="mt-2 flex items-start justify-between gap-4">
+              <h1 className="font-display text-[1.75rem] font-bold leading-tight tracking-tight text-ink md:text-3xl">{product.name}</h1>
+              <WishlistButton size="lg" active={wishlistIds.has(product._id)} onToggle={() => onToggleWishlist(product)} productName={product.name} />
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+              {supplier?.businessName && (
+                <a href="#supplier" className="inline-flex items-center gap-1 font-medium text-ink-2 hover:text-ink">
+                  {supplier.businessName}
+                  {supplier.isVerified && <CheckBadgeIcon className="h-4 w-4 text-brand" aria-label="Verified supplier" />}
+                </a>
+              )}
+              {reviews.count > 0 && (
+                <a href="#reviews" className="inline-flex items-center gap-1.5 text-muted hover:text-ink">
+                  <Stars value={reviews.average} className="h-3.5 w-3.5" />
+                  <span>
+                    {reviews.average.toFixed(1)} · {reviews.count} review{reviews.count === 1 ? '' : 's'}
+                  </span>
+                </a>
+              )}
+            </div>
+
+            {/* Price */}
+            <div className="mt-6 border-t border-line pt-6">
+              <p className="flex items-baseline gap-2">
+                <span className="price text-[2rem] leading-none">{formatINR(product.price)}</span>
+                <span className="text-sm text-muted">per {unit}</span>
+              </p>
+              {tiers.length > 0 && (
+                <div className="mt-4">
+                  <p className="eyebrow mb-2">Bulk pricing</p>
+                  <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {tiers.map((t) => {
+                      const active = pricing.tierApplied && pricing.unitPrice === t.price && (isQuantityValid ? numericQuantity : moq) >= t.minQty;
+                      return (
+                        <li key={t.minQty} className={`rounded-xl border px-3 py-2 transition-colors ${active ? 'border-brand bg-brand-soft' : 'border-line'}`}>
+                          <p className="text-[11px] text-muted">
+                            {formatQuantity(t.minQty)}+ {unit}
+                          </p>
+                          <p className="font-display text-sm font-bold tabular-nums text-ink">{formatINR(t.price)}</p>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </div>
               )}
             </div>
-            {wishlist && (
-              <button
-                onClick={() => {
-                  if (!requireBuyerLogin()) return;
-                  wishlist.toggleWishlist(product._id);
-                }}
-                aria-label="Toggle wishlist"
-                className="w-11 h-11 rounded-full bg-white border border-slate-200 flex items-center justify-center flex-shrink-0 transition-all duration-200 hover:scale-110 hover:border-rose-200"
-              >
-                {wishlisted ? <HeartIcon className="w-5 h-5 text-rose-500" /> : <HeartOutlineIcon className="w-5 h-5 text-slate-400" />}
-              </button>
-            )}
-          </div>
 
-          <div className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-6 mt-6 shadow-sm">
-            <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold">Price</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">
-              ₹{product.price} <span className="text-sm font-normal text-slate-400">/ {product.unit || 'unit'}</span>
-            </p>
-            {product.moq > 1 && <p className="text-xs text-slate-400 mt-1">Minimum order: {product.moq} {product.unit || 'units'}</p>}
-
-            <p className="text-slate-600 mt-4 leading-relaxed text-sm">{product.description}</p>
-
-            {(product.fabricComposition || product.gsm || product.leadTime || product.fabricWidth || product.rollLength) && (
-              <div className="mt-4 text-sm text-slate-600 space-y-1">
-                {product.fabricComposition && (
-                  <div className="flex justify-between border-b border-slate-100 py-1.5">
-                    <span>Composition</span>
-                    <span className="font-medium text-slate-800">{product.fabricComposition}</span>
-                  </div>
-                )}
-                {product.fabricWidth && (
-                  <div className="flex justify-between border-b border-slate-100 py-1.5">
-                    <span>Width</span>
-                    <span className="font-medium text-slate-800">{product.fabricWidth}</span>
-                  </div>
-                )}
-                {product.rollLength && (
-                  <div className="flex justify-between border-b border-slate-100 py-1.5">
-                    <span>Roll/piece length</span>
-                    <span className="font-medium text-slate-800">{product.rollLength}</span>
-                  </div>
-                )}
-                {product.gsm && (
-                  <div className="flex justify-between border-b border-slate-100 py-1.5">
-                    <span>GSM</span>
-                    <span className="font-medium text-slate-800">{product.gsm}</span>
-                  </div>
-                )}
-                {product.leadTime && (
-                  <div className="flex justify-between border-b border-slate-100 py-1.5">
-                    <span>Lead time</span>
-                    <span className="font-medium text-slate-800">{product.leadTime}</span>
-                  </div>
-                )}
+            {/* Key terms */}
+            <dl className="mt-6 grid grid-cols-2 overflow-hidden rounded-2xl border border-line">
+              <div className="border-b border-r border-line p-4">
+                <dt className="flex items-center gap-1.5 text-xs text-muted">
+                  <ScaleIcon className="h-4 w-4" aria-hidden="true" /> Minimum order
+                </dt>
+                <dd className="mt-1 font-display font-bold tabular-nums text-ink">{moq > 1 ? `${formatQuantity(moq)} ${pluralizeUnit(unit, moq)}` : 'No minimum'}</dd>
               </div>
-            )}
+              <div className="border-b border-line p-4">
+                <dt className="flex items-center gap-1.5 text-xs text-muted">
+                  <CubeIcon className="h-4 w-4" aria-hidden="true" /> Availability
+                </dt>
+                <dd className="mt-1">
+                  <StockIndicator product={product} className="text-sm" />
+                </dd>
+              </div>
+              <div className="border-r border-line p-4">
+                <dt className="flex items-center gap-1.5 text-xs text-muted">
+                  <TruckIcon className="h-4 w-4" aria-hidden="true" /> Lead time
+                </dt>
+                <dd className="mt-1 font-display font-bold text-ink">{product.leadTime || 'Ask supplier'}</dd>
+              </div>
+              <div className="p-4">
+                <dt className="text-xs text-muted">Composition</dt>
+                <dd className="mt-1 truncate font-display font-bold text-ink" title={product.fabricComposition}>
+                  {product.fabricComposition || '—'}
+                </dd>
+              </div>
+            </dl>
 
             {product.colors?.length > 0 && (
-              <div className="mt-6">
-                <p className="text-sm font-medium text-slate-700 mb-2">Color</p>
-                <div className="flex gap-2 flex-wrap">
+              <fieldset className="mt-6">
+                <legend className="label">
+                  Colour <span className="font-normal text-muted">· {selectedColor}</span>
+                </legend>
+                <div className="flex flex-wrap gap-2">
                   {product.colors.map((color) => (
                     <button
                       key={color}
+                      type="button"
                       onClick={() => setSelectedColor(color)}
-                      className={`px-3 py-1.5 rounded-full text-sm border transition-all duration-200 ${
-                        selectedColor === color
-                          ? 'bg-emerald-700 text-white border-emerald-700'
-                          : 'border-slate-300 text-slate-600 hover:border-emerald-400'
+                      aria-pressed={selectedColor === color}
+                      className={`h-9 rounded-full border px-4 text-sm transition-colors ${
+                        selectedColor === color ? 'border-ink bg-ink text-white' : 'border-line-strong text-ink-2 hover:border-ink/40'
                       }`}
                     >
                       {color}
                     </button>
                   ))}
                 </div>
-              </div>
+              </fieldset>
             )}
 
-            {product.specifications && Object.keys(product.specifications).length > 0 && (
+            {/* Quantity + total */}
+            {!soldOut && (
               <div className="mt-6">
-                <p className="text-sm font-medium text-slate-700 mb-2">Specifications</p>
-                <div className="text-sm text-slate-600 space-y-1">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between border-b border-slate-100 py-1.5">
-                      <span className="capitalize">{key}</span>
-                      <span className="font-medium text-slate-800">{String(value)}</span>
-                    </div>
-                  ))}
+                <label htmlFor="pdp-quantity" className="label">
+                  Quantity
+                </label>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
+                  <QuantityStepper
+                    id="pdp-quantity"
+                    value={quantityInput}
+                    onChange={setQuantityInput}
+                    min={moq}
+                    max={product.stock}
+                    allowDecimals={allowDecimals}
+                    unit={pluralizeUnit(unit, numericQuantity || 2)}
+                    invalid={quantityInvalid && quantityInput !== ''}
+                    describedBy={quantityHelpId}
+                  />
+                  <div className="min-w-0" aria-live="polite">
+                    <p className="price text-xl leading-none">{isQuantityValid ? formatINR(pricing.total) : '—'}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      {formatINR(pricing.unitPrice)}/{unit}
+                      {pricing.tierApplied && <span className="font-semibold text-success"> · bulk price</span>}
+                    </p>
+                  </div>
                 </div>
+                <p id={quantityHelpId} className={isQuantityValid || quantityInput === '' ? 'field-hint' : 'field-error'}>
+                  {quantityMessage}
+                </p>
               </div>
             )}
 
-            <p className="text-sm text-slate-500 mt-6">
-              {product.stock > 0 ? `${product.stock} units in stock` : 'Out of stock'}
-            </p>
-
-            {/* Typed quantity input — numeric only, min 1, decimals only for
-                units (kg/meter) that are commonly sold in fractions. */}
-            <div className="mt-4">
-              <p className="text-sm font-medium text-slate-700 mb-1.5">Quantity</p>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  inputMode={allowDecimals ? 'decimal' : 'numeric'}
-                  value={quantityInput}
-                  onChange={handleQuantityChange}
-                  onBlur={handleQuantityBlur}
-                  aria-label="Quantity"
-                  className={`w-28 border rounded-full px-4 py-2.5 text-center font-medium text-slate-900 bg-white focus:outline-none focus:ring-2 transition-shadow ${
-                    isQuantityValid ? 'border-slate-200 focus:ring-emerald-500 focus:border-emerald-500' : 'border-red-300 focus:ring-red-400 focus:border-red-400'
-                  }`}
-                />
-                <span className="text-slate-600 text-sm font-medium">{product.unit || 'unit'}</span>
-              </div>
-              {belowMoq ? (
-                <p className="text-xs text-red-500 mt-1.5">
-                  Minimum order is {moq} {pluralizeUnit(product.unit, moq)}.
-                </p>
-              ) : (
-                !isQuantityValid && quantityInput !== '' && (
-                  <p className="text-xs text-red-500 mt-1.5">
-                    Enter a valid quantity — minimum 1{allowDecimals ? '' : ', whole numbers only'}.
-                  </p>
-                )
-              )}
-            </div>
-
-            {/* Live total price — recalculates instantly as quantity changes. */}
-            <div className="mt-4 bg-emerald-50/60 border border-emerald-100 rounded-2xl px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
-              <div>
-                <p className="text-xs text-emerald-700 font-semibold uppercase tracking-wide">Total Price</p>
-                <p className="text-2xl font-bold text-emerald-900 mt-0.5">₹{totalPrice.toFixed(2)}</p>
-              </div>
-              <p className="text-xs text-emerald-700/80 text-right">
-                ₹{product.price}/{product.unit || 'unit'} × {isQuantityValid ? quantityInput : 0} {product.unit || 'unit'}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock === 0 || !isQuantityValid}
-                className="flex-1 bg-gradient-to-r from-emerald-700 to-emerald-800 text-white py-3 rounded-full font-medium transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
-              >
-                Add to Cart
+            <div className="mt-6 flex flex-col gap-2.5">
+              <button type="button" onClick={handleAddToCart} disabled={soldOut || !isQuantityValid || adding} className="btn btn-primary btn-lg w-full">
+                {adding && <Spinner />}
+                {soldOut ? 'Out of stock' : adding ? 'Adding…' : 'Add to cart'}
               </button>
+              <button type="button" onClick={openQuote} className="btn btn-secondary btn-lg w-full">
+                <DocumentTextIcon className="h-5 w-5" />
+                Request a bulk quote
+              </button>
+              <p className="text-center text-xs text-muted">Quotes let you negotiate price and lead time for large or custom runs.</p>
             </div>
-
-            <button
-              onClick={() => {
-                if (!requireBuyerLogin()) return;
-                setQuoteOpen(true);
-              }}
-              className="w-full mt-3 flex items-center justify-center gap-1.5 border border-amber-300 text-amber-700 py-2.5 rounded-full font-medium text-sm transition-all duration-200 hover:bg-amber-50"
-            >
-              <DocumentTextIcon className="w-4 h-4" />
-              Request a bulk quote
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Quote request modal */}
-      {quoteOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 relative">
-            <button
-              onClick={() => setQuoteOpen(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700"
-              aria-label="Close"
-            >
-              <XMarkIcon className="w-5 h-5" />
-            </button>
-            <h3 className="font-display text-xl font-bold text-slate-900">Request a bulk quote</h3>
-            <p className="text-sm text-slate-500 mt-1">for {product.name}</p>
-
-            <form onSubmit={handleRequestQuote} className="mt-5 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Quantity needed</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  value={quoteForm.requestedQuantity}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, requestedQuantity: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Target price/unit (optional)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={quoteForm.targetPrice}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, targetPrice: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Message (optional)</label>
-                <textarea
-                  rows={3}
-                  value={quoteForm.message}
-                  onChange={(e) => setQuoteForm({ ...quoteForm, message: e.target.value })}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={quoteSubmitting}
-                className="w-full bg-gradient-to-r from-emerald-700 to-emerald-800 text-white py-3 rounded-full font-medium transition-all duration-200 hover:shadow-lg hover:shadow-emerald-700/30 disabled:opacity-50"
-              >
-                {quoteSubmitting ? 'Sending...' : 'Send Request'}
-              </button>
-            </form>
-          </div>
+      {/* Details */}
+      <section className="mt-16 grid gap-10 border-t border-line pt-10 lg:grid-cols-12" aria-labelledby="pdp-details">
+        <div className="lg:col-span-7">
+          <h2 id="pdp-details" className="section-title">
+            About this fabric
+          </h2>
+          <p className="mt-3 max-w-prose whitespace-pre-line text-[15px] leading-relaxed text-ink-2">{product.description || 'The supplier has not added a description yet.'}</p>
+          {product.tags?.length > 0 && (
+            <ul className="mt-5 flex flex-wrap gap-1.5">
+              {product.tags.map((tag) => (
+                <li key={tag} className="badge bg-surface-2 text-ink-2">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
+        {specRows.length > 0 && (
+          <div className="lg:col-span-5">
+            <h2 className="section-title">Specifications</h2>
+            <dl className="mt-3">
+              {specRows.map(([label, value]) => (
+                <div key={label} className="data-row">
+                  <dt className="capitalize">{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
+      </section>
+
+      {/* Supplier */}
+      {supplier && (
+        <section id="supplier" className="mt-12 scroll-mt-24 rounded-2xl border border-line bg-surface p-6 md:p-8" aria-labelledby="pdp-supplier">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="eyebrow">Sold by</p>
+              <h2 id="pdp-supplier" className="mt-1 flex items-center gap-1.5 font-display text-xl font-bold text-ink">
+                {supplier.businessName}
+                {supplier.isVerified && <CheckBadgeIcon className="h-5 w-5 text-brand" aria-label="Verified supplier" />}
+              </h2>
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                {supplier.businessType && <span>{supplier.businessType}</span>}
+                {supplier.businessAddress && (
+                  <span className="inline-flex items-center gap-1">
+                    <MapPinIcon className="h-4 w-4" aria-hidden="true" />
+                    {supplier.businessAddress}
+                  </span>
+                )}
+              </p>
+            </div>
+            <dl className="flex gap-8 text-sm">
+              <div>
+                <dt className="text-muted">Orders completed</dt>
+                <dd className="font-display text-lg font-bold tabular-nums text-ink">{supplier.completedOrders || 0}</dd>
+              </div>
+              {supplier.operatingHours && (
+                <div>
+                  <dt className="text-muted">Hours</dt>
+                  <dd className="font-medium text-ink">{supplier.operatingHours}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+          {supplier.about && <p className="mt-4 max-w-prose text-sm leading-relaxed text-ink-2">{supplier.about}</p>}
+        </section>
       )}
 
+      {/* Similar */}
       {similar.length > 0 && (
-        <div className="mt-16">
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-xl font-bold text-slate-900">You might also like</h2>
-            <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <section className="mt-16" aria-labelledby="pdp-similar">
+          <h2 id="pdp-similar" className="section-title">
+            Similar fabrics
+          </h2>
+          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
             {similar.map((p) => (
-              <ProductCard key={p._id} product={p} onAddToCart={handleQuickAdd} />
+              <ProductCard key={p._id} product={p} wishlisted={wishlistIds.has(p._id)} onToggleWishlist={onToggleWishlist} onAddToCart={quickAdd} />
             ))}
           </div>
-        </div>
+        </section>
       )}
 
       {/* Reviews */}
-      <div className="mt-16 max-w-3xl">
-        <div className="flex items-center gap-4 mb-6">
-          <h2 className="font-display text-xl font-bold text-slate-900">Reviews {ratingCount > 0 && `(${ratingCount})`}</h2>
-          <div className="flex-1 h-px bg-gradient-to-r from-slate-200 to-transparent" />
+      <section id="reviews" className="mt-16 grid scroll-mt-24 gap-10 border-t border-line pt-10 lg:grid-cols-12" aria-labelledby="pdp-reviews">
+        <div className="lg:col-span-4">
+          <h2 id="pdp-reviews" className="section-title">
+            Buyer reviews
+          </h2>
+          {reviews.count > 0 ? (
+            <div className="mt-3 flex items-center gap-3">
+              <span className="price text-4xl">{reviews.average.toFixed(1)}</span>
+              <div>
+                <Stars value={reviews.average} />
+                <p className="mt-0.5 text-sm text-muted">
+                  {reviews.count} review{reviews.count === 1 ? '' : 's'}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted">No reviews yet.</p>
+          )}
+
+          {isLoggedIn ? (
+            <form onSubmit={handleSubmitReview} className="mt-6 space-y-4">
+              <StarInput value={reviewForm.rating} onChange={(rating) => setReviewForm((f) => ({ ...f, rating }))} />
+              <div>
+                <label htmlFor="review-comment" className="label">
+                  Review <span className="font-normal text-muted">(optional)</span>
+                </label>
+                <textarea
+                  id="review-comment"
+                  rows={3}
+                  maxLength={1000}
+                  placeholder="How was the hand-feel, colour accuracy, consistency across rolls?"
+                  value={reviewForm.comment}
+                  onChange={(e) => setReviewForm((f) => ({ ...f, comment: e.target.value }))}
+                  className="input"
+                />
+              </div>
+              <button type="submit" disabled={reviewSubmitting} className="btn btn-secondary">
+                {reviewSubmitting && <Spinner />}
+                {reviewSubmitting ? 'Submitting…' : 'Submit review'}
+              </button>
+            </form>
+          ) : (
+            <p className="mt-6 text-sm text-muted">
+              <Link to="/buyer/login" state={{ from: location.pathname }} className="font-semibold text-brand hover:underline">
+                Sign in
+              </Link>{' '}
+              to review this fabric.
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmitReview} className="bg-white/70 backdrop-blur-sm border border-slate-200/70 rounded-2xl p-5 mb-6">
-          <p className="text-sm font-medium text-slate-700 mb-2">Leave a review</p>
-          <StarRow value={reviewForm.rating} onChange={(n) => setReviewForm({ ...reviewForm, rating: n })} />
-          <textarea
-            rows={2}
-            placeholder="Share your experience with this product..."
-            value={reviewForm.comment}
-            onChange={(e) => setReviewForm({ ...reviewForm, comment: e.target.value })}
-            className="w-full mt-3 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-          />
-          <button
-            type="submit"
-            disabled={reviewSubmitting}
-            className="mt-3 text-sm bg-emerald-700 text-white px-4 py-2 rounded-full hover:bg-emerald-800 transition-colors disabled:opacity-50"
-          >
-            {reviewSubmitting ? 'Submitting...' : 'Submit Review'}
-          </button>
-        </form>
-
-        {reviews.length === 0 ? (
-          <p className="text-slate-400 text-sm">No reviews yet — be the first to share your experience.</p>
-        ) : (
-          <div className="space-y-4">
-            {reviews.map((review) => (
-              <div key={review._id} className="border-b border-slate-100 pb-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <StarRow value={review.rating} />
-                    {review.verifiedPurchase && (
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Verified purchase</span>
-                    )}
+        <div className="lg:col-span-8">
+          {reviews.list.length === 0 ? (
+            <p className="rounded-2xl border border-dashed border-line-strong px-6 py-10 text-center text-sm text-muted">
+              Bought this fabric? Your review helps other buyers judge quality before ordering in bulk.
+            </p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {reviews.list.map((review) => (
+                <li key={review._id} className="py-5 first:pt-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <Stars value={review.rating} className="h-3.5 w-3.5" />
+                    <span className="sr-only">{review.rating} out of 5 stars</span>
+                    {review.verifiedPurchase && <span className="badge bg-success-soft text-success">Verified purchase</span>}
+                    <span className="text-xs text-muted">{new Date(review.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                   </div>
-                  <span className="text-xs text-slate-400">{new Date(review.createdAt).toLocaleDateString()}</span>
-                </div>
-                {review.comment && <p className="text-sm text-slate-600 mt-2">{review.comment}</p>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                  {review.comment && <p className="mt-2 text-sm leading-relaxed text-ink-2">{review.comment}</p>}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
 
-      {toast && (
-        <div className="fixed bottom-40 md:bottom-6 left-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50">{toast}</div>
-      )}
+      <Dialog open={quoteOpen} onClose={() => setQuoteOpen(false)} title="Request a bulk quote" description={`${product.name} · list price ${formatINR(product.price)}/${unit}`}>
+        <form onSubmit={handleRequestQuote} className="space-y-4" noValidate={false}>
+          <InlineError>{quoteError}</InlineError>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="quote-qty" className="label">
+                Quantity ({pluralizeUnit(unit, 2)})
+              </label>
+              <input
+                id="quote-qty"
+                data-autofocus
+                type="number"
+                inputMode="decimal"
+                min="1"
+                step="any"
+                required
+                value={quoteForm.requestedQuantity}
+                onChange={(e) => setQuoteForm((f) => ({ ...f, requestedQuantity: e.target.value }))}
+                className="input"
+              />
+            </div>
+            <div>
+              <label htmlFor="quote-target" className="label">
+                Target price <span className="font-normal text-muted">(₹/{unit})</span>
+              </label>
+              <input
+                id="quote-target"
+                type="number"
+                inputMode="decimal"
+                min="0.01"
+                step="0.01"
+                placeholder="Optional"
+                value={quoteForm.targetPrice}
+                onChange={(e) => setQuoteForm((f) => ({ ...f, targetPrice: e.target.value }))}
+                className="input"
+              />
+            </div>
+          </div>
+          <div>
+            <label htmlFor="quote-message" className="label">
+              Notes for the supplier <span className="font-normal text-muted">(optional)</span>
+            </label>
+            <textarea
+              id="quote-message"
+              rows={3}
+              maxLength={1000}
+              placeholder="Delivery city, deadline, colour or finish requirements…"
+              value={quoteForm.message}
+              onChange={(e) => setQuoteForm((f) => ({ ...f, message: e.target.value }))}
+              className="input"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={() => setQuoteOpen(false)} className="btn btn-secondary flex-1">
+              Cancel
+            </button>
+            <button type="submit" disabled={quoteSubmitting} className="btn btn-primary flex-1">
+              {quoteSubmitting && <Spinner />}
+              {quoteSubmitting ? 'Sending…' : 'Send request'}
+            </button>
+          </div>
+        </form>
+      </Dialog>
     </div>
   );
 }

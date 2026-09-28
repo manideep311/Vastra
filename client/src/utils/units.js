@@ -17,11 +17,6 @@ const DECIMAL_UNITS = new Set(['kg', 'meter']);
 
 export const unitAllowsDecimals = (unit) => DECIMAL_UNITS.has(unit);
 
-export const getUnitLabel = (unit) => UNIT_OPTIONS.find((u) => u.value === unit)?.label || unit || 'unit';
-
-// Formats a price + unit pair consistently everywhere it's shown, e.g. "₹120/kg".
-export const formatPricePerUnit = (price, unit) => `₹${price}/${unit || 'unit'}`;
-
 // Pluralizes a unit for quantity-aware copy, e.g. "1 meter" / "3 meters",
 // "1 unit" / "5 units". "kg" is already its own plural.
 export const pluralizeUnit = (unit, quantity) => {
