@@ -1,8 +1,11 @@
 const express = require('express');
+const validateObjectIdParam = require('../../middleware/validateObjectId');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const { create, getMine, getOne, accept, reject, message } = require('./quote.controller');
 
 const router = express.Router();
+
+router.param('id', validateObjectIdParam);
 
 router.use(authenticate, authorize('buyer'));
 

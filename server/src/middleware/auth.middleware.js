@@ -1,22 +1,47 @@
 const jwt = require('jsonwebtoken');
 
+const readBearerToken = (req) => {
+  const authHeader = req.headers.authorization; // expected format: "Bearer <token>"
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  return authHeader.slice(7).trim() || null;
+};
+
+const verifyToken = (token) => {
+  const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+  if (!decoded?.userId || !['buyer', 'supplier'].includes(decoded.role)) {
+    throw new Error('Malformed token payload');
+  }
+  return decoded;
+};
+
 // Verifies the JWT and attaches { userId, role } to req.user
 const authenticate = (req, res, next) => {
-  const authHeader = req.headers.authorization; // expected format: "Bearer <token>"
-
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+  const token = readBearerToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'Please sign in to continue' });
   }
-
-  const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { userId, role, iat, exp }
+    req.user = verifyToken(token); // { userId, role, iat, exp }
     next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch {
+    return res.status(401).json({ error: 'Your session has expired. Please sign in again.' });
   }
+};
+
+// For public routes that behave slightly differently for signed-in users
+// (e.g. higher AI rate limits). A bad token is simply ignored here — the
+// route stays usable as a guest.
+const optionalAuthenticate = (req, res, next) => {
+  const token = readBearerToken(req);
+  if (token) {
+    try {
+      req.user = verifyToken(token);
+    } catch {
+      req.user = undefined;
+    }
+  }
+  next();
 };
 
 // Restricts access to a specific role — use AFTER authenticate
@@ -29,4 +54,4 @@ const authorize = (requiredRole) => {
   };
 };
 
-module.exports = { authenticate, authorize };
+module.exports = { authenticate, optionalAuthenticate, authorize };

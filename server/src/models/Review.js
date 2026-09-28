@@ -14,5 +14,7 @@ const reviewSchema = new mongoose.Schema(
 
 // One review per buyer per product — resubmitting updates the existing review.
 reviewSchema.index({ productId: 1, buyerId: 1 }, { unique: true });
+// Public review list for a product, newest first.
+reviewSchema.index({ productId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Review', reviewSchema);

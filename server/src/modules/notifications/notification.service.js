@@ -1,4 +1,5 @@
 const Notification = require('../../models/Notification');
+const { pagination } = require('../../utils/validate');
 
 // Best-effort notification creation — used internally by other modules
 // (orders, quotes, samples, reviews) as a side effect of their main action.
@@ -11,21 +12,21 @@ const notify = async (userId, { type = 'system', title, message, link }) => {
   }
 };
 
-const listMyNotifications = async (userId, { page = 1, limit = 20 } = {}) => {
-  const skip = (Number(page) - 1) * Number(limit);
+const listMyNotifications = async (userId, query = {}) => {
+  const { page, limit, skip } = pagination(query, { defaultLimit: 20, maxLimit: 50 });
   const [notifications, unreadCount, total] = await Promise.all([
-    Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    Notification.find({ userId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     Notification.countDocuments({ userId, read: false }),
     Notification.countDocuments({ userId }),
   ]);
-  return { notifications, unreadCount, pagination: { total, page: Number(page), limit: Number(limit) } };
+  return { notifications, unreadCount, pagination: { total, page, limit } };
 };
 
 const markRead = async (userId, notificationId) => {
   const notification = await Notification.findOneAndUpdate(
     { _id: notificationId, userId },
     { read: true },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!notification) {
     const error = new Error('Notification not found');

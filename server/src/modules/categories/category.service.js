@@ -1,4 +1,5 @@
 const Category = require('../../models/Category');
+const { requireString, assertObjectId } = require('../../utils/validate');
 
 const DEFAULT_CATEGORIES = [
   'Cotton', 'Linen', 'Silk', 'Wool', 'Polyester',
@@ -16,7 +17,10 @@ const listCategories = async () => {
 };
 
 const createCategory = async ({ name, parentCategory }) => {
-  const category = await Category.create({ name, parentCategory: parentCategory || null });
+  const category = await Category.create({
+    name: requireString(name, 'Category name', { max: 60 }),
+    parentCategory: parentCategory ? assertObjectId(parentCategory, 'parent category') : null,
+  });
   return category;
 };
 

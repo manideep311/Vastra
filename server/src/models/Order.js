@@ -38,4 +38,8 @@ const orderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Buyer order history and supplier order queue/dashboard, newest first.
+orderSchema.index({ buyerId: 1, createdAt: -1 });
+orderSchema.index({ supplierId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Order', orderSchema);

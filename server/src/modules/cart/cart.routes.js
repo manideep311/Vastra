@@ -1,8 +1,11 @@
 const express = require('express');
+const validateObjectIdParam = require('../../middleware/validateObjectId');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const { getCart, postItem, patchItem, deleteItem } = require('./cart.controller');
 
 const router = express.Router();
+
+router.param('productId', validateObjectIdParam);
 
 router.use(authenticate, authorize('buyer'));
 

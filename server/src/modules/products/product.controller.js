@@ -56,13 +56,14 @@ const getMine = async (req, res, next) => {
 
 const uploadImages = async (req, res, next) => {
   try {
-    const imagePaths = req.files.map((file) => `/uploads/${file.filename}`);
-    const product = await addProductImages(req.user.userId, req.params.id, imagePaths);
+    if (!req.files?.length) return res.status(400).json({ error: 'Choose at least one image to upload' });
+    const product = await addProductImages(req.user.userId, req.params.id, req.files);
     res.status(200).json({ product });
   } catch (error) {
     next(error);
   }
 };
+
 const getCategories = async (req, res, next) => {
   try {
     const categories = await getCategoryStats();

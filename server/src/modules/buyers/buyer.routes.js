@@ -1,8 +1,11 @@
 const express = require('express');
+const validateObjectIdParam = require('../../middleware/validateObjectId');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const { submitOnboarding, getMyProfile, postAddress, patchAddress, deleteAddress } = require('./buyer.controller');
 
 const router = express.Router();
+
+router.param('addressId', validateObjectIdParam);
 
 router.use(authenticate, authorize('buyer')); // applies to every route below
 

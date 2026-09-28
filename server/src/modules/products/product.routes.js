@@ -1,9 +1,12 @@
 const express = require('express');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
 const upload = require('../../middleware/upload.middleware');
+const validateObjectIdParam = require('../../middleware/validateObjectId');
 const { getAll, getOne, create, update, remove, getMine, uploadImages, getCategories } = require('./product.controller');
 
 const router = express.Router();
+
+router.param('id', validateObjectIdParam);
 
 router.get('/', getAll);
 router.get('/meta/categories', getCategories);

@@ -20,7 +20,9 @@ const productSchema = new mongoose.Schema(
       enum: ['available', 'out_of_stock'],
       default: 'available',
     },
-    embeddingVector: { type: [Number], default: undefined }, // populated later by AI service
+    // Semantic-search vector from the AI service. Excluded from every query by
+    // default (it's hundreds of floats) — AI code opts in with '+embeddingVector'.
+    embeddingVector: { type: [Number], default: undefined, select: false },
 
     // --- B2B / textile extensions (all optional, additive — safe for existing rows) ---
     unit: { type: String, default: 'meter' }, // e.g. meter, yard, kg, piece, roll
@@ -46,5 +48,11 @@ const productSchema = new mongoose.Schema(
 
 // Text index for basic keyword search across name and description
 productSchema.index({ name: 'text', description: 'text' });
+
+// Marketplace listing: optional category/status filters, newest first.
+productSchema.index({ category: 1, createdAt: -1 });
+productSchema.index({ status: 1, createdAt: -1 });
+// Supplier inventory, dashboard counts and public storefront.
+productSchema.index({ supplierId: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Product', productSchema);
