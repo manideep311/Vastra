@@ -4,6 +4,7 @@ const Product = require('../../models/Product');
 const SupplierProfile = require('../../models/SupplierProfile');
 const { generateEmbedding, invalidateProductIndex } = require('../ai/ai.service');
 const { UPLOAD_DIR } = require('../../middleware/upload.middleware');
+const { saveImage, deleteImage, isStoredImage } = require('../../utils/imageStore');
 const {
   httpError,
   requireNumber,
@@ -207,7 +208,7 @@ const updateProduct = async (supplierId, productId, data) => {
 
   await product.save();
   if (textChanged) invalidateProductIndex();
-  await removeUploadedFiles(removedImages);
+  await removeStoredImages(removedImages);
 
   const saved = product.toObject();
   delete saved.embeddingVector;
@@ -218,7 +219,7 @@ const deleteProduct = async (supplierId, productId) => {
   const product = await findOwnedProduct(supplierId, productId, 'supplierId images');
   await product.deleteOne();
   invalidateProductIndex();
-  await removeUploadedFiles(product.images);
+  await removeStoredImages(product.images);
   return { message: 'Product deleted' };
 };
 
@@ -248,33 +249,44 @@ const getEffectivePrice = (product, quantity) => {
   return applicable.length > 0 ? applicable[0].price : product.price;
 };
 
-// Only files we stored ourselves are ever deleted — external seed URLs are left alone.
-const removeUploadedFiles = async (imagePaths = []) => {
+// Only images we stored ourselves are ever deleted — external seed URLs are
+// left alone. Legacy '/uploads/' files are removed from disk; current ones
+// from the database.
+const removeStoredImages = async (imagePaths = []) => {
   await Promise.all(
-    imagePaths
-      .filter((p) => typeof p === 'string' && p.startsWith('/uploads/'))
-      .map((p) => fs.unlink(path.join(UPLOAD_DIR, path.basename(p))).catch(() => {}))
+    imagePaths.map((p) => {
+      if (isStoredImage(p)) return deleteImage(p).catch(() => {});
+      if (typeof p === 'string' && p.startsWith('/uploads/')) {
+        return fs.unlink(path.join(UPLOAD_DIR, path.basename(p))).catch(() => {});
+      }
+      return null;
+    })
   );
 };
 
 const addProductImages = async (supplierId, productId, files) => {
-  const imagePaths = files.map((file) => `/uploads/${file.filename}`);
-  try {
-    const product = await findOwnedProduct(supplierId, productId);
-    if (product.images.length + imagePaths.length > MAX_IMAGES) {
-      throw httpError(400, `A product can have at most ${MAX_IMAGES} images`);
-    }
-    product.images.push(...imagePaths);
-    await product.save();
+  const product = await findOwnedProduct(supplierId, productId);
+  if (product.images.length + files.length > MAX_IMAGES) {
+    throw httpError(400, `A product can have at most ${MAX_IMAGES} images`);
+  }
 
-    const saved = product.toObject();
-    delete saved.embeddingVector;
-    return saved;
+  const stored = [];
+  try {
+    // One at a time keeps memory flat while large photos are re-encoded.
+    for (const file of files) {
+      stored.push(await saveImage(file.buffer, { ownerId: supplierId }));
+    }
+    product.images.push(...stored);
+    await product.save();
   } catch (error) {
-    // Don't leave orphaned files on disk when the request is rejected.
-    await removeUploadedFiles(imagePaths);
+    // Never leave orphaned images behind when the request fails part-way.
+    await removeStoredImages(stored);
     throw error;
   }
+
+  const saved = product.toObject();
+  delete saved.embeddingVector;
+  return saved;
 };
 
 module.exports = {

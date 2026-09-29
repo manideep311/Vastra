@@ -44,8 +44,9 @@ function ImageFrame({ url, alt, className, imgClassName, eager, sizes }) {
 }
 
 // Keyed by URL so switching images (e.g. in a gallery) restarts the fade-in.
-function ProductImage({ src, alt = '', className = '', imgClassName = '', eager = false, sizes }) {
-  const url = getImageUrl(src);
+// `width`: pixels worth downloading for this slot (see getImageUrl).
+function ProductImage({ src, alt = '', className = '', imgClassName = '', eager = false, sizes, width }) {
+  const url = getImageUrl(src, { width });
   return <ImageFrame key={url || 'none'} url={url} alt={alt} className={className} imgClassName={imgClassName} eager={eager} sizes={sizes} />;
 }
 

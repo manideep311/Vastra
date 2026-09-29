@@ -3,7 +3,8 @@ import { Link, Navigate } from 'react-router-dom';
 import { useBuyerAuth } from '../context/BuyerAuthContext';
 import { useSupplierAuth } from '../context/SupplierAuthContext';
 import { AuthLayout, PasswordInput } from './AuthLayout';
-import { InlineError, Spinner } from './ui/States';
+import { InlineError, SlowServerNotice, Spinner } from './ui/States';
+import { useSlowLoading } from '../hooks/useSlowLoading';
 import { getErrorMessage } from '../utils/errors';
 
 /**
@@ -20,6 +21,7 @@ function LoginForm({ role, heading, subheading, title, description, registerHref
   const buyerAuth = useBuyerAuth();
   const supplierAuth = useSupplierAuth();
   const { loginUser, isLoggedIn } = role === 'supplier' ? supplierAuth : buyerAuth;
+  const slowSignIn = useSlowLoading(submitting);
 
   // Already signed in as this role — nothing to do here.
   if (isLoggedIn && !submitting) return <Navigate to={redirectTo} replace />;
@@ -75,6 +77,7 @@ function LoginForm({ role, heading, subheading, title, description, registerHref
           {submitting && <Spinner />}
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
+        {slowSignIn && <SlowServerNotice />}
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">

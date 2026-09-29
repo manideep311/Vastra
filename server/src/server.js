@@ -7,6 +7,7 @@ const routes = require('./routes');
 const errorHandler = require('./middleware/errorHandler');
 const { apiLimiter } = require('./middleware/rateLimit');
 const { UPLOAD_DIR } = require('./middleware/upload.middleware');
+const imageRoutes = require('./modules/images/image.routes');
 
 if (!process.env.JWT_SECRET) {
   console.error('JWT_SECRET is not set — refusing to start.');
@@ -52,6 +53,10 @@ app.use(
     setHeaders: (res) => res.setHeader('Content-Security-Policy', "default-src 'none'"),
   })
 );
+
+// Product images are immutable, cacheable static content — served ahead of the
+// API rate limiter so a page full of thumbnails doesn't use up a visitor's budget.
+app.use('/api/images', imageRoutes);
 
 app.use('/api', apiLimiter, routes);
 

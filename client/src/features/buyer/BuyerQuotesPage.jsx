@@ -98,7 +98,7 @@ function BuyerQuotesPage() {
             return (
               <li key={quote._id} className="card animate-fade-up p-5">
                 <div className="flex items-start gap-4">
-                  <ProductImage src={product?.images?.[0]} className="h-16 w-16 flex-shrink-0 rounded-xl" />
+                  <ProductImage src={product?.images?.[0]} width={160} className="h-16 w-16 flex-shrink-0 rounded-xl" />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       {product ? (

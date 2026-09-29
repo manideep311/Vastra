@@ -25,7 +25,7 @@ function ProductCard({ product, wishlisted, onToggleWishlist, onAddToCart, eager
           <ProductImage
             src={product.images?.[0]}
             eager={eager}
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            width={500}
             className="aspect-[4/5] w-full rounded-2xl"
             imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.04]"
           />

@@ -35,7 +35,7 @@ const CartLine = memo(function CartLine({ item, busy, onQuantity, onRemove }) {
   return (
     <li className={`grid grid-cols-[4.5rem_1fr] gap-4 py-5 transition-opacity sm:grid-cols-[5.5rem_1fr_auto] ${busy ? 'opacity-60' : ''}`}>
       <Link to={`/products/${product._id}`} tabIndex={-1} aria-hidden="true">
-        <ProductImage src={product.images?.[0]} className="aspect-square w-full rounded-xl" />
+        <ProductImage src={product.images?.[0]} width={250} className="aspect-square w-full rounded-xl" />
       </Link>
 
       <div className="min-w-0">

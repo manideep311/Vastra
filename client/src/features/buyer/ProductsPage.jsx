@@ -5,8 +5,9 @@ import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import { getProducts, getProductCategoryStats } from '../../services/productService';
 import { useProductActions } from '../../hooks/useProductActions';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
+import { useSlowLoading } from '../../hooks/useSlowLoading';
 import ProductRow, { ProductRowSkeleton } from '../../components/product/ProductRow';
-import { EmptyState, ErrorState, Spinner } from '../../components/ui/States';
+import { EmptyState, ErrorState, SlowServerNotice, Spinner } from '../../components/ui/States';
 import { getErrorMessage } from '../../utils/errors';
 
 const PAGE_SIZE = 20;
@@ -37,6 +38,7 @@ function ProductsPage() {
   const requestRef = useRef(null);
 
   const { quickAdd, onToggleWishlist, wishlistIds } = useProductActions();
+  const slowLoading = useSlowLoading(status === 'loading');
 
   const updateParams = useCallback(
     (changes) => {
@@ -262,11 +264,14 @@ function ProductsPage() {
             <ErrorState message={error} onRetry={load} />
           </div>
         ) : status === 'loading' ? (
+          <>
+          {slowLoading && <SlowServerNotice className="mb-4" />}
           <ul className="card divide-y divide-line overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
               <ProductRowSkeleton key={i} />
             ))}
           </ul>
+          </>
         ) : products.length === 0 ? (
           <div className="card">
             {hasFilters ? (

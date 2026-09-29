@@ -198,7 +198,7 @@ function InventoryPage() {
                       <tr key={product._id} className="transition-colors hover:bg-surface-2/50">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <ProductImage src={product.images?.[0]} className="h-11 w-11 flex-shrink-0 rounded-lg" />
+                            <ProductImage src={product.images?.[0]} width={120} className="h-11 w-11 flex-shrink-0 rounded-lg" />
                             <div className="min-w-0">
                               <p className="truncate font-semibold text-ink">{product.name}</p>
                               <p className="text-xs text-muted">{product.category}</p>
@@ -236,7 +236,7 @@ function InventoryPage() {
               <ul className="mt-4 divide-y divide-line rounded-2xl border border-line bg-surface md:hidden">
                 {visible.map((product) => (
                   <li key={product._id} className="flex gap-3 p-4">
-                    <ProductImage src={product.images?.[0]} className="h-16 w-16 flex-shrink-0 rounded-xl" />
+                    <ProductImage src={product.images?.[0]} width={160} className="h-16 w-16 flex-shrink-0 rounded-xl" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <p className="min-w-0 truncate font-semibold text-ink">{product.name}</p>

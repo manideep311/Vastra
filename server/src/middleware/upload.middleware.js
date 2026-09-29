@@ -1,33 +1,20 @@
 const multer = require('multer');
 const path = require('path');
-const crypto = require('crypto');
 
 // Explicit allow-list: SVG (which can carry script) and any other image/*
-// type are rejected. The stored extension is derived from the MIME type,
-// never from the client-supplied filename.
-const ALLOWED_TYPES = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/webp': '.webp',
-  'image/gif': '.gif',
-};
+// type are rejected. Files are held in memory only long enough to be
+// validated, resized and stored in MongoDB (see utils/imageStore.js).
+const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
+// Legacy on-disk uploads from before images moved to the database; still
+// served read-only so older listings keep working.
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${ALLOWED_TYPES[file.mimetype]}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024, files: 5 }, // 5MB per file, 5 files per request
   fileFilter: (req, file, cb) => {
-    if (ALLOWED_TYPES[file.mimetype]) {
+    if (ALLOWED_TYPES.has(file.mimetype)) {
       cb(null, true);
     } else {
       const error = new Error('Only JPG, PNG, WebP or GIF images are allowed');

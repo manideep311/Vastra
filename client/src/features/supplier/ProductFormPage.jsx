@@ -457,7 +457,7 @@ function ProductFormPage() {
               <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
                 {existingImages.map((img, i) => (
                   <li key={img} className="group relative">
-                    <ProductImage src={img} className="aspect-square w-full rounded-xl" />
+                    <ProductImage src={img} width={330} className="aspect-square w-full rounded-xl" />
                     {i === 0 && <span className="badge absolute bottom-2 left-2 bg-ink/80 text-white">Cover</span>}
                     <div className="absolute right-1.5 top-1.5 flex gap-1">
                       {i > 0 && (

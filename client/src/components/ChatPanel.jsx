@@ -170,7 +170,7 @@ function ChatPanel({ open, onClose }) {
                   {msg.products.slice(0, 3).map((p) => (
                     <li key={p._id}>
                       <Link to={`/products/${p._id}`} onClick={onClose} className="flex items-center gap-3 bg-surface px-3 py-2.5 transition-colors hover:bg-surface-2">
-                        <ProductImage src={p.images?.[0]} className="h-11 w-11 flex-shrink-0 rounded-lg" />
+                        <ProductImage src={p.images?.[0]} width={120} className="h-11 w-11 flex-shrink-0 rounded-lg" />
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-[13px] font-semibold text-ink">{p.name}</span>
                           <span className="block text-xs text-muted">

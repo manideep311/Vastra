@@ -4,7 +4,8 @@ import { MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { getProducts, getProductCategoryStats } from '../../services/productService';
 import { useProductActions } from '../../hooks/useProductActions';
 import ProductCard, { ProductCardSkeleton } from '../../components/ProductCard';
-import { ErrorState } from '../../components/ui/States';
+import { ErrorState, SlowServerNotice } from '../../components/ui/States';
+import { useSlowLoading } from '../../hooks/useSlowLoading';
 import { getErrorMessage } from '../../utils/errors';
 
 const HOW_IT_WORKS = [
@@ -21,6 +22,7 @@ function Discovery() {
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
   const { quickAdd, onToggleWishlist, wishlistIds } = useProductActions();
+  const slowLoading = useSlowLoading(status === 'loading');
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -135,6 +137,7 @@ function Discovery() {
           </Link>
         </div>
 
+        {slowLoading && <SlowServerNotice className="mt-5" />}
         {status === 'error' ? (
           <ErrorState message={error} onRetry={load} />
         ) : (

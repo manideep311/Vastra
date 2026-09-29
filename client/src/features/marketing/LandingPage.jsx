@@ -183,10 +183,10 @@ function LandingPage() {
                 />
               </picture>
               <div className="absolute -bottom-6 -left-4 hidden w-36 rotate-[-4deg] animate-fade-up overflow-hidden rounded-2xl border-4 border-brand-strong shadow-xl sm:block lg:-left-10 lg:w-44 [animation-delay:150ms]">
-                <ProductImage src={wm(FABRICS[1].file, 400)} alt="" className="aspect-[4/5] w-full" />
+                <ProductImage src={wm(FABRICS[1].file, 330)} alt="" className="aspect-[4/5] w-full" />
               </div>
               <div className="absolute -right-3 -top-5 hidden w-28 rotate-[5deg] animate-fade-up overflow-hidden rounded-2xl border-4 border-brand-strong shadow-xl sm:block lg:-right-6 lg:w-32 [animation-delay:250ms]">
-                <ProductImage src={wm(FABRICS[4].file, 400)} alt="" className="aspect-square w-full" />
+                <ProductImage src={wm(FABRICS[4].file, 330)} alt="" className="aspect-square w-full" />
               </div>
             </div>
           </div>
@@ -226,7 +226,7 @@ function LandingPage() {
                 aria-label={`About ${fabric.name}`}
               >
                 <ProductImage
-                  src={wm(fabric.file, i === 0 ? 1000 : 600)}
+                  src={wm(fabric.file, i === 0 ? 960 : 500)}
                   alt=""
                   className="h-full w-full"
                   imgClassName="transition-transform duration-700 ease-out group-hover:scale-[1.05]"
@@ -324,7 +324,7 @@ function LandingPage() {
         {activeFabric && (
           <>
             <div className="relative">
-              <ProductImage src={wm(activeFabric.file, 900)} alt={activeFabric.name} className="aspect-[16/9] w-full" />
+              <ProductImage src={wm(activeFabric.file, 960)} alt={activeFabric.name} className="aspect-[16/9] w-full" />
               <button
                 type="button"
                 onClick={() => setActiveFabric(null)}

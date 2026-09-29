@@ -29,6 +29,7 @@ function ProductRow({ product, wishlisted, onToggleWishlist, onAddToCart }) {
       <Link to={href} tabIndex={-1} aria-hidden="true" className="row-span-2 sm:row-span-1">
         <ProductImage
           src={product.images?.[0]}
+          width={160}
           className="aspect-square w-full rounded-xl"
           imgClassName="transition-transform duration-500 ease-out group-hover:scale-[1.06]"
         />

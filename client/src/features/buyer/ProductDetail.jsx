@@ -17,7 +17,8 @@ import QuantityStepper from '../../components/ui/QuantityStepper';
 import WishlistButton from '../../components/product/WishlistButton';
 import StockIndicator from '../../components/product/StockIndicator';
 import { stockLevel } from '../../utils/stock';
-import { EmptyState, ErrorState, InlineError, Skeleton, Spinner } from '../../components/ui/States';
+import { EmptyState, ErrorState, InlineError, Skeleton, SlowServerNotice, Spinner } from '../../components/ui/States';
+import { useSlowLoading } from '../../hooks/useSlowLoading';
 import { unitAllowsDecimals, pluralizeUnit } from '../../utils/units';
 import { effectiveMoq, formatINR, formatQuantity, getEffectivePrice } from '../../utils/pricing';
 import { getErrorMessage } from '../../utils/errors';
@@ -52,8 +53,10 @@ function StarInput({ value, onChange }) {
   );
 }
 
-function DetailSkeleton() {
+function DetailSkeleton({ slow }) {
   return (
+    <>
+    {slow && <SlowServerNotice className="mb-6" />}
     <div className="grid gap-10 lg:grid-cols-12" aria-busy="true" aria-label="Loading product">
       <Skeleton className="aspect-square w-full rounded-3xl lg:col-span-7" />
       <div className="space-y-4 lg:col-span-5">
@@ -65,6 +68,7 @@ function DetailSkeleton() {
         <Skeleton className="h-12 w-full rounded-full" />
       </div>
     </div>
+    </>
   );
 }
 
@@ -79,6 +83,7 @@ function ProductDetail() {
 
   const [product, setProduct] = useState(null);
   const [status, setStatus] = useState('loading'); // loading | ready | notfound | error
+  const slowLoading = useSlowLoading(status === 'loading');
   const [loadError, setLoadError] = useState('');
   const [activeImage, setActiveImage] = useState(0);
   const [selectedColor, setSelectedColor] = useState('');
@@ -232,7 +237,7 @@ function ProductDetail() {
     }
   };
 
-  if (status === 'loading') return <DetailSkeleton />;
+  if (status === 'loading') return <DetailSkeleton slow={slowLoading} />;
   if (status === 'notfound') {
     return (
       <EmptyState
@@ -284,7 +289,7 @@ function ProductDetail() {
       <div className="grid gap-8 lg:grid-cols-12 lg:gap-12">
         {/* Gallery */}
         <div className="lg:col-span-7">
-          <ProductImage src={images[activeImage]} alt={product.name} eager className="aspect-square w-full rounded-3xl" sizes="(min-width: 1024px) 58vw, 100vw" />
+          <ProductImage src={images[activeImage]} alt={product.name} eager width={960} className="aspect-square w-full rounded-3xl" />
           {images.length > 1 && (
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1" role="group" aria-label="Product images">
               {images.map((img, i) => (
@@ -298,7 +303,7 @@ function ProductDetail() {
                     activeImage === i ? 'ring-brand' : 'ring-transparent opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <ProductImage src={img} className="h-16 w-16 md:h-20 md:w-20" />
+                  <ProductImage src={img} width={160} className="h-16 w-16 md:h-20 md:w-20" />
                 </button>
               ))}
             </div>

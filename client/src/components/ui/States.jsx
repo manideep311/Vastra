@@ -70,6 +70,16 @@ export function Spinner({ className = 'h-4 w-4' }) {
   );
 }
 
+// Shown when a load runs long — most often the hosted API waking from sleep.
+export function SlowServerNotice({ className = '' }) {
+  return (
+    <p role="status" className={`flex animate-fade-up items-center justify-center gap-2 text-center text-sm text-muted ${className}`}>
+      <Spinner className="h-4 w-4 flex-shrink-0" />
+      Still loading — the server is waking up after a quiet spell. The first load can take up to a minute.
+    </p>
+  );
+}
+
 // Route-level Suspense fallback — a thin bar, not a blank screen.
 export function PageLoader() {
   return (
