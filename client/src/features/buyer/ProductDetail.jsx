@@ -17,7 +17,7 @@ import QuantityStepper from '../../components/ui/QuantityStepper';
 import WishlistButton from '../../components/product/WishlistButton';
 import StockIndicator from '../../components/product/StockIndicator';
 import { stockLevel } from '../../utils/stock';
-import { EmptyState, ErrorState, InlineError, Skeleton, SlowServerNotice, Spinner } from '../../components/ui/States';
+import { EmptyState, ErrorState, InlineError, Skeleton, LoadingSeam, Spinner } from '../../components/ui/States';
 import { useSlowLoading } from '../../hooks/useSlowLoading';
 import { unitAllowsDecimals, pluralizeUnit } from '../../utils/units';
 import { effectiveMoq, formatINR, formatQuantity, getEffectivePrice } from '../../utils/pricing';
@@ -56,15 +56,15 @@ function StarInput({ value, onChange }) {
 function DetailSkeleton({ slow }) {
   return (
     <>
-    {slow && <SlowServerNotice className="mb-6" />}
+    {slow && <LoadingSeam className="mb-6" />}
     <div className="grid gap-10 lg:grid-cols-12" aria-busy="true" aria-label="Loading product">
-      <Skeleton className="aspect-square w-full rounded-3xl lg:col-span-7" />
+      <Skeleton patch className="aspect-square w-full rounded-3xl lg:col-span-7" />
       <div className="space-y-4 lg:col-span-5">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-9 w-4/5" />
         <Skeleton className="h-4 w-1/2" />
         <Skeleton className="mt-6 h-10 w-40" />
-        <Skeleton className="h-28 w-full rounded-2xl" />
+        <Skeleton patch className="h-28 w-full rounded-2xl" />
         <Skeleton className="h-12 w-full rounded-full" />
       </div>
     </div>

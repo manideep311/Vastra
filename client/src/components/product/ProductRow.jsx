@@ -93,7 +93,7 @@ export default memo(ProductRow);
 export function ProductRowSkeleton() {
   return (
     <li className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-4 px-4 py-4 sm:grid-cols-[5rem_1fr_9rem_8.5rem] sm:px-5" aria-hidden="true">
-      <div className="skeleton aspect-square w-full rounded-xl" />
+      <div className="skeleton-patch aspect-square w-full rounded-xl" />
       <div className="space-y-2">
         <div className="skeleton h-2.5 w-16" />
         <div className="skeleton h-4 w-3/5" />

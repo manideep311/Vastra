@@ -7,7 +7,7 @@ import { useProductActions } from '../../hooks/useProductActions';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSlowLoading } from '../../hooks/useSlowLoading';
 import ProductRow, { ProductRowSkeleton } from '../../components/product/ProductRow';
-import { EmptyState, ErrorState, SlowServerNotice, Spinner } from '../../components/ui/States';
+import { EmptyState, ErrorState, LoadingSeam, Spinner } from '../../components/ui/States';
 import { getErrorMessage } from '../../utils/errors';
 
 const PAGE_SIZE = 20;
@@ -143,11 +143,13 @@ function ProductsPage() {
         <p className="eyebrow">Catalog</p>
         <h1 className="page-title">Fabrics</h1>
         <p className="text-sm text-muted">
-          {status === 'loading'
-            ? 'Loading the catalog…'
-            : hasFilters
-              ? 'Compare price, minimum order and lead time across suppliers.'
-              : `${pagination.total.toLocaleString('en-IN')} ${pagination.total === 1 ? 'fabric' : 'fabrics'} from textile suppliers across India`}
+          {status === 'loading' ? (
+            <span className="skeleton inline-block h-3 w-64 max-w-full align-middle" aria-hidden="true" />
+          ) : hasFilters ? (
+            'Compare price, minimum order and lead time across suppliers.'
+          ) : (
+            `${pagination.total.toLocaleString('en-IN')} ${pagination.total === 1 ? 'fabric' : 'fabrics'} from textile suppliers across India`
+          )}
         </p>
       </header>
 
@@ -265,7 +267,7 @@ function ProductsPage() {
           </div>
         ) : status === 'loading' ? (
           <>
-          {slowLoading && <SlowServerNotice className="mb-4" />}
+          {slowLoading && <LoadingSeam className="mb-4" />}
           <ul className="card divide-y divide-line overflow-hidden">
             {Array.from({ length: 6 }).map((_, i) => (
               <ProductRowSkeleton key={i} />

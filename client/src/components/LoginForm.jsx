@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useBuyerAuth } from '../context/BuyerAuthContext';
 import { useSupplierAuth } from '../context/SupplierAuthContext';
 import { AuthLayout, PasswordInput } from './AuthLayout';
-import { InlineError, SlowServerNotice, Spinner } from './ui/States';
+import { InlineError, LoadingSeam, Spinner } from './ui/States';
 import { useSlowLoading } from '../hooks/useSlowLoading';
 import { getErrorMessage } from '../utils/errors';
 
@@ -77,7 +77,7 @@ function LoginForm({ role, heading, subheading, title, description, registerHref
           {submitting && <Spinner />}
           {submitting ? 'Signing in…' : 'Sign in'}
         </button>
-        {slowSignIn && <SlowServerNotice />}
+        {slowSignIn && <LoadingSeam className="pt-2" />}
       </form>
 
       <p className="mt-6 text-center text-sm text-muted">

@@ -4,7 +4,7 @@ import { MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { getProducts, getProductCategoryStats } from '../../services/productService';
 import { useProductActions } from '../../hooks/useProductActions';
 import ProductCard, { ProductCardSkeleton } from '../../components/ProductCard';
-import { ErrorState, SlowServerNotice } from '../../components/ui/States';
+import { ErrorState, LoadingSeam } from '../../components/ui/States';
 import { useSlowLoading } from '../../hooks/useSlowLoading';
 import { getErrorMessage } from '../../utils/errors';
 
@@ -137,7 +137,7 @@ function Discovery() {
           </Link>
         </div>
 
-        {slowLoading && <SlowServerNotice className="mt-5" />}
+        {slowLoading && <LoadingSeam className="mt-5" />}
         {status === 'error' ? (
           <ErrorState message={error} onRetry={load} />
         ) : (

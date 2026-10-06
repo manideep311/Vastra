@@ -50,7 +50,7 @@ function OrdersPage() {
       {status === 'loading' && (
         <div className="mt-6 space-y-4" aria-busy="true">
           {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
+            <Skeleton key={i} patch className="h-44 w-full rounded-2xl" />
           ))}
         </div>
       )}

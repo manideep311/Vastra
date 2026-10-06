@@ -78,7 +78,7 @@ export default memo(ProductCard);
 export function ProductCardSkeleton() {
   return (
     <div aria-hidden="true">
-      <div className="skeleton aspect-[4/5] w-full rounded-2xl" />
+      <div className="skeleton-patch aspect-[4/5] w-full rounded-2xl" />
       <div className="space-y-2 pt-3.5">
         <div className="skeleton h-2.5 w-16" />
         <div className="skeleton h-4 w-4/5" />

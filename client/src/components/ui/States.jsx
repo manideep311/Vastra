@@ -1,8 +1,10 @@
 import { Link } from 'react-router-dom';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-export function Skeleton({ className = '' }) {
-  return <div className={`skeleton ${className}`} aria-hidden="true" />;
+// Stitched placeholder: a running stitch for bars, a sewn seam (`patch`)
+// around larger blocks such as images, cards and panels.
+export function Skeleton({ className = '', patch = false }) {
+  return <div className={`${patch ? 'skeleton-patch' : 'skeleton'} ${className}`} aria-hidden="true" />;
 }
 
 // Explains why a list is empty and offers the obvious next step.
@@ -70,21 +72,21 @@ export function Spinner({ className = 'h-4 w-4' }) {
   );
 }
 
-// Shown when a load runs long — most often the hosted API waking from sleep.
-export function SlowServerNotice({ className = '' }) {
+// A seam sewing itself across — added once a load runs long (most often the
+// hosted API waking from sleep). Visual only; screen readers hear the label.
+export function LoadingSeam({ className = '' }) {
   return (
-    <p role="status" className={`flex animate-fade-up items-center justify-center gap-2 text-center text-sm text-muted ${className}`}>
-      <Spinner className="h-4 w-4 flex-shrink-0" />
-      Still loading — the server is waking up after a quiet spell. The first load can take up to a minute.
-    </p>
+    <div role="status" aria-label="Still loading" className={`mx-auto w-full max-w-xs animate-fade-in ${className}`}>
+      <span className="stitch-progress" />
+    </div>
   );
 }
 
-// Route-level Suspense fallback — a thin bar, not a blank screen.
+// Route-level Suspense fallback.
 export function PageLoader() {
   return (
-    <div className="flex min-h-[40vh] items-center justify-center text-muted" role="status" aria-label="Loading page">
-      <Spinner className="h-5 w-5" />
+    <div className="flex min-h-[40vh] items-center justify-center" role="status" aria-label="Loading page">
+      <span className="stitch-progress w-40" />
     </div>
   );
 }

@@ -28,7 +28,7 @@ function ImageFrame({ url, alt, className, imgClassName, eager, sizes }) {
       {status !== 'loaded' && (
         <div
           aria-hidden="true"
-          className={`absolute inset-0 ${status === 'loading' ? 'skeleton rounded-none' : ''}`}
+          className={`absolute inset-0 ${status === 'loading' ? 'skeleton-patch' : ''}`}
           style={
             status === 'error'
               ? {

@@ -132,7 +132,7 @@ function InventoryPage() {
       {status === 'loading' && (
         <div className="mt-6 space-y-2" aria-busy="true">
           {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-xl" />
+            <Skeleton key={i} patch className="h-16 w-full rounded-xl" />
           ))}
         </div>
       )}

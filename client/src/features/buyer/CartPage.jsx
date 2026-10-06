@@ -109,7 +109,7 @@ function CartSkeleton() {
         <Skeleton className="h-8 w-40" />
         {[0, 1, 2].map((i) => (
           <div key={i} className="flex gap-4">
-            <Skeleton className="h-20 w-20 rounded-xl" />
+            <Skeleton patch className="h-20 w-20 rounded-xl" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-3 w-16" />
               <Skeleton className="h-4 w-1/2" />
@@ -118,7 +118,7 @@ function CartSkeleton() {
           </div>
         ))}
       </div>
-      <Skeleton className="h-56 w-full rounded-2xl lg:col-span-4" />
+      <Skeleton patch className="h-56 w-full rounded-2xl lg:col-span-4" />
     </div>
   );
 }

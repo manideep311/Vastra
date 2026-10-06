@@ -137,8 +137,8 @@ function CheckoutPage() {
   if (status === 'loading') {
     return (
       <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-12" aria-busy="true">
-        <Skeleton className="h-80 rounded-2xl lg:col-span-7" />
-        <Skeleton className="h-64 rounded-2xl lg:col-span-5" />
+        <Skeleton patch className="h-80 rounded-2xl lg:col-span-7" />
+        <Skeleton patch className="h-64 rounded-2xl lg:col-span-5" />
       </div>
     );
   }

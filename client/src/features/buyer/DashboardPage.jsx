@@ -107,7 +107,7 @@ function DashboardPage() {
                 )}
               </div>
               {status === 'loading' ? (
-                <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+                <Skeleton patch className="mt-4 h-40 w-full rounded-2xl" />
               ) : orders.length === 0 ? (
                 <p className="mt-4 rounded-2xl border border-dashed border-line-strong px-6 py-8 text-center text-sm text-muted">
                   No orders yet.{' '}
@@ -138,7 +138,7 @@ function DashboardPage() {
                 Business profile
               </h2>
               {status === 'loading' ? (
-                <Skeleton className="mt-4 h-40 w-full rounded-2xl" />
+                <Skeleton patch className="mt-4 h-40 w-full rounded-2xl" />
               ) : profile ? (
                 <dl className="mt-3">
                   {[

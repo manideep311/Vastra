@@ -83,10 +83,10 @@ function SupplierDashboardPage() {
     return (
       <div aria-busy="true" aria-label="Loading dashboard">
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="mt-8 h-24 w-full rounded-2xl" />
+        <Skeleton patch className="mt-8 h-24 w-full rounded-2xl" />
         <div className="mt-8 grid gap-8 lg:grid-cols-5">
-          <Skeleton className="h-64 rounded-2xl lg:col-span-3" />
-          <Skeleton className="h-64 rounded-2xl lg:col-span-2" />
+          <Skeleton patch className="h-64 rounded-2xl lg:col-span-3" />
+          <Skeleton patch className="h-64 rounded-2xl lg:col-span-2" />
         </div>
       </div>
     );

@@ -145,12 +145,53 @@
     @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-semibold leading-5;
   }
 
-  /* Skeletons: a soft sweep rather than a blinking pulse */
+  /* Loading placeholders look like cloth being sewn. Bars carry a running
+     stitch along their middle; blocks (.skeleton-patch) get a seam around
+     the edge like a patch. The stitches feed forward while the seam stays put. */
+  .skeleton,
+  .skeleton-patch {
+    background-color: #efebe3;
+    background-repeat: no-repeat;
+    animation: stitch-feed 1.1s linear infinite;
+  }
   .skeleton {
     @apply rounded-md;
-    background: linear-gradient(90deg, #efebe3 0%, #f7f4ee 45%, #efebe3 90%);
-    background-size: 200% 100%;
-    animation: skeleton-sweep 1.3s ease-in-out infinite;
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgb(201 138 27 / 0.6) var(--stitch-offset),
+      rgb(201 138 27 / 0.6) calc(var(--stitch-offset) + 7px),
+      transparent calc(var(--stitch-offset) + 7px),
+      transparent calc(var(--stitch-offset) + 12px)
+    );
+    background-size: 100% 2px;
+    background-position: 0 50%;
+  }
+  /* Four seams (top, right, bottom, left) sewing clockwise, inset 8px. */
+  .skeleton-patch {
+    background-image:
+      repeating-linear-gradient(90deg, rgb(201 138 27 / 0.6) var(--stitch-offset), rgb(201 138 27 / 0.6) calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 12px)),
+      repeating-linear-gradient(180deg, rgb(201 138 27 / 0.6) var(--stitch-offset), rgb(201 138 27 / 0.6) calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 12px)),
+      repeating-linear-gradient(270deg, rgb(201 138 27 / 0.6) var(--stitch-offset), rgb(201 138 27 / 0.6) calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 12px)),
+      repeating-linear-gradient(0deg, rgb(201 138 27 / 0.6) var(--stitch-offset), rgb(201 138 27 / 0.6) calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 7px), transparent calc(var(--stitch-offset) + 12px));
+    background-size:
+      calc(100% - 16px) 2px,
+      2px calc(100% - 16px),
+      calc(100% - 16px) 2px,
+      2px calc(100% - 16px);
+    background-position:
+      8px 8px,
+      calc(100% - 8px) 8px,
+      8px calc(100% - 8px),
+      8px 8px;
+  }
+
+  /* A single seam that sews itself across, then pulls through — the
+     page-level loading indicator. */
+  .stitch-progress {
+    display: block;
+    height: 2px;
+    background-image: repeating-linear-gradient(90deg, var(--color-accent) 0 8px, transparent 8px 13px);
+    animation: stitch-sew 1.8s cubic-bezier(0.65, 0, 0.35, 1) infinite;
   }
 
   .data-row {
@@ -160,9 +201,21 @@
   .data-row > dd { @apply text-right font-medium text-ink; }
 }
 
-@keyframes skeleton-sweep {
-  from { background-position: 100% 0; }
-  to { background-position: -100% 0; }
+/* Registered so the stitch offset can animate (stitches move, seams stay). */
+@property --stitch-offset {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes stitch-feed {
+  to { --stitch-offset: 12px; }
+}
+
+@keyframes stitch-sew {
+  0% { clip-path: inset(0 100% 0 0); }
+  55% { clip-path: inset(0 0 0 0); }
+  100% { clip-path: inset(0 0 0 100%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -173,5 +226,9 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+  /* Show the seam fully stitched rather than mid-sew. */
+  .stitch-progress {
+    animation: none;
   }
 }
