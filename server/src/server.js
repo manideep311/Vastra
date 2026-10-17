@@ -23,13 +23,15 @@ if (process.env.TRUST_PROXY) app.set('trust proxy', Number(process.env.TRUST_PRO
 
 // CLIENT_ORIGIN is a comma-separated allow-list, e.g. "https://vastra.app".
 // Unset in development, any origin is accepted so local ports just work.
+// In production an open CORS policy is never the intent, so refuse to start.
 const allowedOrigins = (process.env.CLIENT_ORIGIN || '')
   .split(',')
   .map((o) => o.trim())
   .filter(Boolean);
 
 if (isProduction && allowedOrigins.length === 0) {
-  console.warn('CLIENT_ORIGIN is not set — CORS will allow any origin.');
+  console.error('CLIENT_ORIGIN is not set — refusing to start in production with an open CORS policy.');
+  process.exit(1);
 }
 
 app.use(
