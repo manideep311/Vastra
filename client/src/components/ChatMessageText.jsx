@@ -5,10 +5,13 @@ import { Fragment } from 'react';
 // markup); tables, which don't fit the narrow chat window, become one bullet
 // per row. Everything else stays plain text.
 
+// **bold** and *italic* (the asterisks must hug the text, so "5 * 3" stays as is).
 const renderInline = (text) =>
-  text.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
-    part.length > 4 && part.startsWith('**') && part.endsWith('**') ? <strong key={i}>{part.slice(2, -2)}</strong> : part
-  );
+  text.split(/(\*\*[^*\n]+\*\*|\*(?!\s)[^*\n]+?(?<!\s)\*)/g).map((part, i) => {
+    if (part.length > 4 && part.startsWith('**') && part.endsWith('**')) return <strong key={i}>{part.slice(2, -2)}</strong>;
+    if (part.length > 2 && part.startsWith('*') && part.endsWith('*')) return <em key={i}>{part.slice(1, -1)}</em>;
+    return part;
+  });
 
 const isTableRow = (line) => /^\s*\|.*\|\s*$/.test(line);
 const isTableDivider = (line) => /^[\s|:-]+$/.test(line) && line.includes('-');
