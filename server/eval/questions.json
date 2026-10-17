@@ -1,30 +1,311 @@
 {
-  "description": "Starter evaluation set for assistant retrieval (5 questions). Expected product IDs were read from the live catalog API on 2026-10-17. Reseeding the database creates new IDs, so update them after running a seed script. Extend this set before drawing conclusions from the numbers.",
+  "description": "Assistant retrieval evaluation set (40 buyer questions). Questions 1-5 list product IDs read from the live catalog on 2026-10-17 plus names; questions 6-40 list expected product names, matched case-insensitively at run time so they survive a reseed. Names come from the seed scripts and the live catalog snapshot; the script lists any name it cannot find. Questions are phrased as buyers would ask and avoid copying product names. Review the expected answers before quoting results.",
   "questions": [
     {
       "question": "Lightweight breathable fabric for summer shirts",
-      "expectedProductIds": ["6aba33aa9781139734e4dd25", "6a720ccbac383c9c0c6960a4", "6a73f4f112e5dc5f8ed8fdae", "6a7236b294a4f6767702b933"],
-      "expectedNames": ["Pure Linen Slub 44s", "Pure European Flax Linen", "Linen Blend Fabric", "Natural Linen-Cotton Blend"]
+      "expectedProductIds": [
+        "6aba33aa9781139734e4dd25",
+        "6a720ccbac383c9c0c6960a4",
+        "6a73f4f112e5dc5f8ed8fdae",
+        "6a7236b294a4f6767702b933"
+      ],
+      "expectedNames": [
+        "Pure Linen Slub 44s",
+        "Pure European Flax Linen",
+        "Linen Blend Fabric",
+        "Natural Linen-Cotton Blend"
+      ]
     },
     {
       "question": "Heavy raw selvedge denim for premium jeans",
-      "expectedProductIds": ["6a720ccaac383c9c0c6960a1", "6a73f4f212e5dc5f8ed8fdaf"],
-      "expectedNames": ["Raw Selvedge Denim 14oz", "Denim Fabric (12 Oz)"]
+      "expectedProductIds": [
+        "6a720ccaac383c9c0c6960a1",
+        "6a73f4f212e5dc5f8ed8fdaf"
+      ],
+      "expectedNames": [
+        "Raw Selvedge Denim 14oz",
+        "Denim Fabric (12 Oz)"
+      ]
     },
     {
       "question": "Handloom silk with zari work for bridal sarees",
-      "expectedProductIds": ["6a720cc9ac383c9c0c696099"],
-      "expectedNames": ["Kanchipuram Handloom Silk Brocade"]
+      "expectedProductIds": [
+        "6a720cc9ac383c9c0c696099"
+      ],
+      "expectedNames": [
+        "Kanchipuram Handloom Silk Brocade"
+      ]
     },
     {
       "question": "Absorbent fabric for bath towels",
-      "expectedProductIds": ["6aba33ad9781139734e4dd2b", "6a73f4f312e5dc5f8ed8fdb3"],
-      "expectedNames": ["Organic Cotton Terry Towel Fabric", "Terry Towel Fabric"]
+      "expectedProductIds": [
+        "6aba33ad9781139734e4dd2b",
+        "6a73f4f312e5dc5f8ed8fdb3"
+      ],
+      "expectedNames": [
+        "Organic Cotton Terry Towel Fabric",
+        "Terry Towel Fabric"
+      ]
     },
     {
       "question": "Water-resistant lining for rain jackets",
-      "expectedProductIds": ["6a720cccac383c9c0c6960a8"],
-      "expectedNames": ["Water-Resistant Polyester Taffeta"]
+      "expectedProductIds": [
+        "6a720cccac383c9c0c6960a8"
+      ],
+      "expectedNames": [
+        "Water-Resistant Polyester Taffeta"
+      ]
+    },
+    {
+      "question": "Crisp cotton fabric for formal office shirts",
+      "expectedNames": [
+        "Premium Combed Cotton Poplin",
+        "Premium Cotton Shirting Fabric",
+        "Yarn-Dyed Cotton Chambray"
+      ]
+    },
+    {
+      "question": "Sustainable certified organic cotton for an eco fashion label",
+      "expectedNames": [
+        "GOTS Certified Organic Cotton Twill",
+        "Organic Cotton Fabric"
+      ]
+    },
+    {
+      "question": "Soft organic material for newborn baby clothes",
+      "expectedNames": [
+        "Organic Cotton Fabric",
+        "GOTS Certified Organic Cotton Twill"
+      ]
+    },
+    {
+      "question": "Shiny luxurious fabric for evening gowns",
+      "expectedNames": [
+        "Pure Mulberry Silk Satin",
+        "Silk Satin Fabric",
+        "Premium Cotton Velvet"
+      ]
+    },
+    {
+      "question": "Traditional South Indian silk for wedding sarees",
+      "expectedNames": [
+        "Kanchipuram Handloom Silk Brocade",
+        "Silk Satin Fabric"
+      ]
+    },
+    {
+      "question": "Fine wool suiting for tailored blazers",
+      "expectedNames": [
+        "Merino Wool Blend Suiting",
+        "Herringbone Wool Tweed",
+        "Polyester Suiting Fabric"
+      ]
+    },
+    {
+      "question": "Warm thick material for winter overcoats",
+      "expectedNames": [
+        "Heavy Wool Winter Coating",
+        "Herringbone Wool Tweed",
+        "Donegal-Style Fleck Tweed"
+      ]
+    },
+    {
+      "question": "Denim with stretch for comfortable skinny jeans",
+      "expectedNames": [
+        "Stretch Denim 12oz",
+        "Denim Fabric (12 Oz)"
+      ]
+    },
+    {
+      "question": "Durable fabric for cushion covers and curtains",
+      "expectedNames": [
+        "Linen-Cotton Blend Upholstery Fabric",
+        "Natural Linen-Cotton Blend",
+        "Premium Cotton Velvet",
+        "Heavy Cotton Canvas Duck"
+      ]
+    },
+    {
+      "question": "Fabric for lining handbags and backpacks",
+      "expectedNames": [
+        "Water-Resistant Polyester Taffeta",
+        "Polyester Mesh Fabric",
+        "Heavy Cotton Canvas Duck"
+      ]
+    },
+    {
+      "question": "Hard-wearing easy-care fabric for factory uniforms",
+      "expectedNames": [
+        "Poly-Cotton Blend Workwear Fabric",
+        "Polyester Suiting Fabric",
+        "Premium Cotton Shirting Fabric"
+      ]
+    },
+    {
+      "question": "Plush fabric with a soft pile for luxury drapes",
+      "expectedNames": [
+        "Premium Cotton Velvet"
+      ]
+    },
+    {
+      "question": "Ribbed textured fabric for trousers and jackets",
+      "expectedNames": [
+        "Fine Wale Cotton Corduroy"
+      ]
+    },
+    {
+      "question": "Flowy lightweight fabric for dresses and blouses",
+      "expectedNames": [
+        "Viscose Rayon Crepe",
+        "Rayon Printed Fabric"
+      ]
+    },
+    {
+      "question": "Light denim-look fabric for casual shirts",
+      "expectedNames": [
+        "Yarn-Dyed Cotton Chambray"
+      ]
+    },
+    {
+      "question": "Biodegradable natural fibre for shopping bags and sacks",
+      "expectedNames": [
+        "Natural Woven Jute Fabric",
+        "Heavy Cotton Canvas Duck"
+      ]
+    },
+    {
+      "question": "Heavy-duty canvas for tents and tool bags",
+      "expectedNames": [
+        "Heavy Cotton Canvas Duck"
+      ]
+    },
+    {
+      "question": "Classic tweed for flat caps and heritage jackets",
+      "expectedNames": [
+        "Herringbone Wool Tweed",
+        "Donegal-Style Fleck Tweed"
+      ]
+    },
+    {
+      "question": "Wool fabric with colourful flecks",
+      "expectedNames": [
+        "Donegal-Style Fleck Tweed"
+      ]
+    },
+    {
+      "question": "Stretchy knit for T-shirts and leggings",
+      "expectedNames": [
+        "Cotton Lycra Knit Fabric"
+      ]
+    },
+    {
+      "question": "Activewear fabric with good stretch recovery",
+      "expectedNames": [
+        "Cotton Lycra Knit Fabric",
+        "Polyester Mesh Fabric",
+        "Stretch Denim 12oz"
+      ]
+    },
+    {
+      "question": "Wrinkle-free fabric for office trousers",
+      "expectedNames": [
+        "Polyester Suiting Fabric",
+        "Merino Wool Blend Suiting"
+      ]
+    },
+    {
+      "question": "Printed fabric for kurtis and ethnic wear",
+      "expectedNames": [
+        "Rayon Printed Fabric",
+        "Linen Blend Fabric"
+      ]
+    },
+    {
+      "question": "Light fabric for summer kurtas",
+      "expectedNames": [
+        "Linen Blend Fabric",
+        "Pure Linen Slub 44s",
+        "Pure European Flax Linen",
+        "Rayon Printed Fabric"
+      ]
+    },
+    {
+      "question": "Fabric for hotel bathrobes",
+      "expectedNames": [
+        "Terry Towel Fabric",
+        "Organic Cotton Terry Towel Fabric"
+      ]
+    },
+    {
+      "question": "Breathable mesh for sports jerseys and caps",
+      "expectedNames": [
+        "Polyester Mesh Fabric"
+      ]
+    },
+    {
+      "question": "Satin for bridal lehengas",
+      "expectedNames": [
+        "Silk Satin Fabric",
+        "Pure Mulberry Silk Satin",
+        "Kanchipuram Handloom Silk Brocade"
+      ]
+    },
+    {
+      "question": "Outdoor gear fabric that sheds light rain",
+      "expectedNames": [
+        "Water-Resistant Polyester Taffeta"
+      ]
+    },
+    {
+      "question": "Eco-friendly material for rustic home decor",
+      "expectedNames": [
+        "Natural Woven Jute Fabric",
+        "Linen-Cotton Blend Upholstery Fabric",
+        "Natural Linen-Cotton Blend"
+      ]
+    },
+    {
+      "question": "Shuttle-loom denim with vintage character",
+      "expectedNames": [
+        "Raw Selvedge Denim 14oz"
+      ]
+    },
+    {
+      "question": "Easy-to-dye cotton with low shrinkage",
+      "expectedNames": [
+        "Premium Combed Cotton Poplin",
+        "Premium Cotton Shirting Fabric"
+      ]
+    },
+    {
+      "question": "Cotton fabric that keeps its colour after many washes",
+      "expectedNames": [
+        "Premium Cotton Shirting Fabric",
+        "Premium Combed Cotton Poplin",
+        "Yarn-Dyed Cotton Chambray"
+      ]
+    },
+    {
+      "question": "Textured linen for loose-fit resort wear",
+      "expectedNames": [
+        "Pure European Flax Linen",
+        "Pure Linen Slub 44s",
+        "Linen Blend Fabric"
+      ]
+    },
+    {
+      "question": "Corduroy for kids' winter pants",
+      "expectedNames": [
+        "Fine Wale Cotton Corduroy"
+      ]
+    },
+    {
+      "question": "Insulating fabric for outerwear in cold climates",
+      "expectedNames": [
+        "Heavy Wool Winter Coating",
+        "Herringbone Wool Tweed",
+        "Donegal-Style Fleck Tweed"
+      ]
     }
   ]
 }
