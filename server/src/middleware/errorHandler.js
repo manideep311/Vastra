@@ -11,7 +11,7 @@ const errorHandler = (err, req, res, next) => {
   if (err.type === 'entity.too.large') {
     return res.status(413).json({ error: 'Request body is too large' });
   }
-  if (err.statusCode && err.statusCode < 500) {
+  if (err.statusCode && (err.statusCode < 500 || err.expose)) {
     return res.status(err.statusCode).json({ error: err.message });
   }
   if (err.name === 'CastError') {
