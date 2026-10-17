@@ -35,12 +35,55 @@ const releaseStock = (reservations) =>
     )
   );
 
+// A checkout claims the cart first, so two simultaneous checkouts can't both
+// turn the same cart into orders. A claim older than this is treated as
+// abandoned (e.g. the server restarted mid-checkout) and can be taken over.
+const CHECKOUT_CLAIM_TTL_MS = 2 * 60 * 1000;
+
+const claimCart = async (buyerId) => {
+  const cart = await Cart.findOneAndUpdate(
+    {
+      buyerId,
+      'items.0': { $exists: true },
+      $or: [{ checkoutLockedAt: null }, { checkoutLockedAt: { $lt: new Date(Date.now() - CHECKOUT_CLAIM_TTL_MS) } }],
+    },
+    { $set: { checkoutLockedAt: new Date() } },
+    { returnDocument: 'after' }
+  );
+  if (cart) return cart;
+
+  const existing = await Cart.findOne({ buyerId }).select('items').lean();
+  if (!existing || existing.items.length === 0) throw httpError(400, 'Cart is empty');
+  throw httpError(409, 'This cart is already being checked out. Check your orders in a moment.');
+};
+
 const placeOrder = async (buyerId, rawShippingInfo) => {
   const shippingInfo = validateShippingInfo(rawShippingInfo);
+  const cart = await claimCart(buyerId);
 
-  const cart = await Cart.findOne({ buyerId });
-  if (!cart || cart.items.length === 0) throw httpError(400, 'Cart is empty');
+  try {
+    const createdOrders = await createOrdersFromCart(buyerId, cart, shippingInfo);
+    cart.items = [];
+    cart.checkoutLockedAt = null;
+    await cart.save();
 
+    for (const order of createdOrders) {
+      notify(order.supplierId, {
+        type: 'order_status',
+        title: 'New order received',
+        message: `You received a new order worth ₹${order.total.toFixed(2)}.`,
+        link: '/supplier/orders',
+      });
+    }
+    return createdOrders;
+  } catch (error) {
+    // Release the claim so the buyer can fix the cart and try again.
+    await Cart.updateOne({ _id: cart._id }, { $set: { checkoutLockedAt: null } });
+    throw error;
+  }
+};
+
+const createOrdersFromCart = async (buyerId, cart, shippingInfo) => {
   const productIds = cart.items.map((item) => item.productId);
   const products = await Product.find({ _id: { $in: productIds } });
   const productMap = new Map(products.map((p) => [p._id.toString(), p]));
@@ -109,21 +152,7 @@ const placeOrder = async (buyerId, rawShippingInfo) => {
     await releaseStock(reservations);
     throw failure.reason;
   }
-  const createdOrders = settled.map((s) => s.value);
-
-  cart.items = [];
-  await cart.save();
-
-  for (const order of createdOrders) {
-    notify(order.supplierId, {
-      type: 'order_status',
-      title: 'New order received',
-      message: `You received a new order worth ₹${order.total.toFixed(2)}.`,
-      link: '/supplier/orders',
-    });
-  }
-
-  return createdOrders;
+  return settled.map((s) => s.value);
 };
 
 const getBuyerOrders = async (buyerId) => Order.find({ buyerId }).sort({ createdAt: -1 }).limit(200).lean();

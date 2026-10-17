@@ -25,6 +25,8 @@ const cartSchema = new mongoose.Schema(
       unique: true, // one active cart per buyer
     },
     items: [cartItemSchema],
+    // Set while a checkout is turning this cart into orders (see order.service).
+    checkoutLockedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

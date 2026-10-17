@@ -2,6 +2,7 @@ const Quote = require('../../models/Quote');
 const Product = require('../../models/Product');
 const Cart = require('../../models/Cart');
 const { notify } = require('../notifications/notification.service');
+const { assertCartEditable } = require('../cart/cart.service');
 const { httpError, assertObjectId, requireNumber, optionalNumber, requireString, optionalString } = require('../../utils/validate');
 
 const populateOpts = [
@@ -158,6 +159,7 @@ const acceptQuote = async (buyerId, quoteId) => {
 
   let cart = await Cart.findOne({ buyerId });
   if (!cart) cart = await Cart.create({ buyerId, items: [] });
+  assertCartEditable(cart);
 
   const existingItem = cart.items.find((item) => item.productId.toString() === quote.productId.toString());
   if (existingItem) {

@@ -20,6 +20,15 @@ const findOrCreateRawCart = async (buyerId) => {
   return cart;
 };
 
+// While a checkout holds the cart (order.service claimCart), edits would race
+// with it, so they are refused until the checkout finishes.
+const CHECKOUT_CLAIM_TTL_MS = 2 * 60 * 1000;
+const assertCartEditable = (cart) => {
+  if (cart.checkoutLockedAt && Date.now() - new Date(cart.checkoutLockedAt).getTime() < CHECKOUT_CLAIM_TTL_MS) {
+    throw httpError(409, 'Your cart is being checked out. Try again in a moment.');
+  }
+};
+
 // Exported for the GET /cart route — always populated, safe to send to the client.
 // Lines whose product was deleted by the supplier are dropped here, so the
 // client never receives an item with a null product.
@@ -77,6 +86,7 @@ const addItem = async (buyerId, productId, rawQuantity) => {
   const quantity = parseQuantity(rawQuantity, product);
 
   const cart = await findOrCreateRawCart(buyerId);
+  assertCartEditable(cart);
   const existingItem = cart.items.find((item) => item.productId.toString() === productId);
   const newTotalQuantity = existingItem ? existingItem.quantity + quantity : quantity;
 
@@ -99,6 +109,7 @@ const addItem = async (buyerId, productId, rawQuantity) => {
 
 const updateItemQuantity = async (buyerId, productId, rawQuantity) => {
   const cart = await findOrCreateRawCart(buyerId);
+  assertCartEditable(cart);
   const item = cart.items.find((item) => item.productId.toString() === productId);
   if (!item) throw httpError(404, 'Item not in cart');
 
@@ -116,9 +127,10 @@ const updateItemQuantity = async (buyerId, productId, rawQuantity) => {
 
 const removeItem = async (buyerId, productId) => {
   const cart = await findOrCreateRawCart(buyerId);
+  assertCartEditable(cart);
   cart.items = cart.items.filter((item) => item.productId.toString() !== productId);
   await cart.save();
   return cart.populate('items.productId', CART_ITEM_POPULATE);
 };
 
-module.exports = { getOrCreateCart, addItem, updateItemQuantity, removeItem, effectiveMoq, assertMeetsMoq };
+module.exports = { getOrCreateCart, addItem, updateItemQuantity, removeItem, effectiveMoq, assertMeetsMoq, assertCartEditable };
