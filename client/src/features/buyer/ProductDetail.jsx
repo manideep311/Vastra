@@ -528,6 +528,10 @@ function ProductDetail() {
             </dl>
           </div>
           {supplier.about && <p className="mt-4 max-w-prose text-sm leading-relaxed text-ink-2">{supplier.about}</p>}
+          <Link to={`/suppliers/${product.supplierId}`} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+            See all fabrics from {supplier.businessName}
+            <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </section>
       )}
 
@@ -567,6 +571,7 @@ function ProductDetail() {
 
           {isLoggedIn ? (
             <form onSubmit={handleSubmitReview} className="mt-6 space-y-4">
+              <p className="text-xs text-muted">Reviews are open once an order containing this fabric is completed.</p>
               <StarInput value={reviewForm.rating} onChange={(rating) => setReviewForm((f) => ({ ...f, rating }))} />
               <div>
                 <label htmlFor="review-comment" className="label">
@@ -592,7 +597,7 @@ function ProductDetail() {
               <Link to="/buyer/login" state={{ from: location.pathname }} className="font-semibold text-brand hover:underline">
                 Sign in
               </Link>{' '}
-              to review this fabric.
+              to review a fabric you've ordered.
             </p>
           )}
         </div>

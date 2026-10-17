@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon } from '@heroicons/react/20/solid';
 import { getSupplierQuotes, respondToQuote, declineQuote } from '../../services/quoteService';
+import { suggestQuote } from '../../services/aiService';
 import { useToast } from '../../components/ui/Toast';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ProductImage from '../../components/ui/ProductImage';
@@ -28,6 +30,7 @@ function ResponseForm({ quote, onSubmit, onDecline, onCancel, busy }) {
     supplierMessage: '',
   });
   const [error, setError] = useState('');
+  const [suggestion, setSuggestion] = useState({ status: 'idle', note: '' });
   const price = Number(form.quotedPrice);
   const valid = form.quotedPrice !== '' && price > 0;
   const discount = valid && listPrice ? Math.round((1 - price / listPrice) * 100) : null;
@@ -48,10 +51,42 @@ function ResponseForm({ quote, onSubmit, onDecline, onCancel, busy }) {
     if (err) setError(err);
   };
 
+  // Fills the editable fields with an AI suggestion; nothing is sent until
+  // the supplier presses Send offer.
+  const handleSuggest = async () => {
+    setSuggestion({ status: 'loading', note: '' });
+    try {
+      const result = await suggestQuote({
+        productId: quote.productId?._id,
+        requestedQuantity: quote.requestedQuantity,
+        targetPrice: quote.targetPrice,
+      });
+      if (!result.suggestedPrice && !result.suggestedLeadTime) throw new Error('Empty suggestion');
+      setForm((f) => ({
+        ...f,
+        quotedPrice: result.suggestedPrice ? String(result.suggestedPrice) : f.quotedPrice,
+        quotedLeadTime: result.suggestedLeadTime || f.quotedLeadTime,
+      }));
+      setSuggestion({ status: 'done', note: (result.reasoning || '').replace(/[.\s]+$/, '') });
+    } catch {
+      setSuggestion({ status: 'unavailable', note: '' });
+    }
+  };
+
   const id = (field) => `q-${quote._id}-${field}`;
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 rounded-xl border border-line bg-surface-2/50 p-4" noValidate>
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button type="button" onClick={handleSuggest} disabled={busy || suggestion.status === 'loading'} className="btn btn-sm btn-secondary">
+          {suggestion.status === 'loading' ? <Spinner className="h-3.5 w-3.5" /> : <SparklesIcon className="h-4 w-4 text-accent" aria-hidden="true" />}
+          {suggestion.status === 'loading' ? 'Suggesting…' : 'Suggest price & lead time'}
+        </button>
+        <p className="text-xs text-muted" aria-live="polite">
+          {suggestion.status === 'done' && `Suggestion filled in${suggestion.note ? ` — ${suggestion.note}` : ''}. Review it before sending.`}
+          {suggestion.status === 'unavailable' && 'Suggestions aren’t available right now. Enter your price manually.'}
+        </p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
           <label htmlFor={id('price')} className="label">

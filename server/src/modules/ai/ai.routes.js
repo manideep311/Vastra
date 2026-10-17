@@ -2,7 +2,7 @@ const express = require('express');
 const { authenticate, optionalAuthenticate, authorize } = require('../../middleware/auth.middleware');
 const { aiLimiter } = require('../../middleware/rateLimit');
 const validateObjectIdParam = require('../../middleware/validateObjectId');
-const { ping, search, chat, similar, compare, categorize, recommendations, suggestQuote } = require('./ai.controller');
+const { search, chat, similar, categorize, recommendations, suggestQuote } = require('./ai.controller');
 
 const router = express.Router();
 
@@ -17,9 +17,7 @@ router.get('/similar/:productId', similar);
 // but are rate limited per IP — or per account when signed in.
 router.post('/search', optionalAuthenticate, aiLimiter, search);
 router.post('/chat', optionalAuthenticate, aiLimiter, chat);
-router.post('/compare', optionalAuthenticate, aiLimiter, compare);
 
-router.get('/ping', authenticate, aiLimiter, ping);
 router.get('/recommendations', authenticate, authorize('buyer'), aiLimiter, recommendations);
 router.post('/categorize', authenticate, authorize('supplier'), aiLimiter, categorize);
 router.post('/suggest-quote', authenticate, authorize('supplier'), aiLimiter, suggestQuote);

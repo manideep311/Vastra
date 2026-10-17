@@ -31,3 +31,9 @@ export const updateOrderStatus = async (orderId, status) => {
   const response = await apiClient.patch(`/supplier/orders/${orderId}/status`, { status }, supplier);
   return response.data;
 };
+
+// Public storefront: profile, listed product count and latest listings.
+export const getPublicSupplier = async (supplierId, { signal } = {}) => {
+  const response = await apiClient.get(`/suppliers/${supplierId}`, { authRole: 'buyer', signal });
+  return response.data;
+};

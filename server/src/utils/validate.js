@@ -4,9 +4,12 @@ const mongoose = require('mongoose');
 // trusting req.body directly — every value that affects money, stock,
 // ownership or status is re-checked here on the server.
 
+// Errors built here carry a message written for the client, so the error
+// handler may show it even for a 5xx (e.g. "the assistant is unavailable").
 const httpError = (statusCode, message) => {
   const error = new Error(message);
   error.statusCode = statusCode;
+  error.expose = true;
   return error;
 };
 

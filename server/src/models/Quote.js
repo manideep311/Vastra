@@ -1,19 +1,10 @@
 const mongoose = require('mongoose');
 
-// RFQ / negotiation thread between a buyer and a supplier for a specific product.
-// Buyer requests a quantity + optional target price; supplier responds with their
-// offer; either side can keep messaging until the buyer accepts or rejects.
+// Bulk quote request (RFQ) between a buyer and a supplier for a specific product.
+// The buyer requests a quantity, an optional target price and a note; the
+// supplier responds with a price and lead time; the buyer accepts or rejects.
 
 const QUOTE_STATUSES = ['pending', 'quoted', 'accepted', 'rejected', 'expired'];
-
-const quoteMessageSchema = new mongoose.Schema(
-  {
-    sender: { type: String, enum: ['buyer', 'supplier'], required: true },
-    text: { type: String, required: true },
-    timestamp: { type: Date, default: Date.now },
-  },
-  { _id: false }
-);
 
 const quoteSchema = new mongoose.Schema(
   {
@@ -27,7 +18,6 @@ const quoteSchema = new mongoose.Schema(
     quotedPrice: { type: Number }, // supplier's offered price per unit
     quotedLeadTime: { type: String }, // e.g. "10-15 days"
     supplierMessage: { type: String },
-    messages: [quoteMessageSchema],
     validUntil: { type: Date },
   },
   { timestamps: true }

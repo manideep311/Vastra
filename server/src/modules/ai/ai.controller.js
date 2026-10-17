@@ -1,21 +1,11 @@
 const {
-  testConnection,
   semanticSearch,
   chatWithAssistant,
   getSimilarProducts,
-  compareProducts,
   suggestCategory,
   suggestQuoteForProduct,
   getRecommendationsForBuyer,
 } = require('./ai.service');
-
-const ping = async (req, res, next) => {
-  try {
-    res.status(200).json({ message: await testConnection() });
-  } catch (error) {
-    next(error);
-  }
-};
 
 const search = async (req, res, next) => {
   try {
@@ -40,15 +30,6 @@ const similar = async (req, res, next) => {
   try {
     const results = await getSimilarProducts(req.params.productId);
     res.status(200).json({ results });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const compare = async (req, res, next) => {
-  try {
-    const result = await compareProducts(req.body.productIds);
-    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -83,4 +64,4 @@ const suggestQuote = async (req, res, next) => {
   }
 };
 
-module.exports = { ping, search, chat, similar, compare, categorize, recommendations, suggestQuote };
+module.exports = { search, chat, similar, categorize, recommendations, suggestQuote };

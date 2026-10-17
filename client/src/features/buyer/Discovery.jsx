@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MagnifyingGlassIcon, ArrowRightIcon } from '@heroicons/react/20/solid';
 import { getProducts, getProductCategoryStats } from '../../services/productService';
+import { getRecommendations } from '../../services/aiService';
+import { useBuyerAuth } from '../../context/BuyerAuthContext';
 import { useProductActions } from '../../hooks/useProductActions';
 import ProductCard, { ProductCardSkeleton } from '../../components/ProductCard';
 import { ErrorState, LoadingSeam } from '../../components/ui/States';
@@ -13,6 +15,63 @@ const HOW_IT_WORKS = [
   { title: 'Bulk quotes', body: 'Need a large run? Request a quote and negotiate price and lead time directly with the supplier.' },
   { title: 'Tiered pricing', body: 'Per-unit prices drop automatically as your quantity crosses a supplier’s bulk tiers.' },
 ];
+
+// Products matched to the buyer's onboarding answers (embedding search over
+// the catalog). Guests see nothing; buyers who skipped onboarding get a
+// prompt to finish it; if the AI service is down the section stays hidden.
+function RecommendedForYou({ quickAdd, onToggleWishlist, wishlistIds }) {
+  const { isLoggedIn } = useBuyerAuth();
+  const [state, setState] = useState({ status: 'idle', products: [] });
+
+  useEffect(() => {
+    if (!isLoggedIn) return undefined;
+    const controller = new AbortController();
+    setState({ status: 'loading', products: [] });
+    getRecommendations({ signal: controller.signal })
+      .then(({ results }) => setState({ status: 'ready', products: (results || []).slice(0, 4) }))
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        setState({ status: err.response?.status === 400 ? 'needs-profile' : 'unavailable', products: [] });
+      });
+    return () => controller.abort();
+  }, [isLoggedIn]);
+
+  if (!isLoggedIn || state.status === 'idle' || state.status === 'unavailable') return null;
+  if (state.status === 'ready' && state.products.length === 0) return null;
+
+  return (
+    <section className="mt-12" aria-labelledby="home-recommended">
+      <h2 id="home-recommended" className="section-title">
+        Picked for your business
+      </h2>
+      {state.status === 'needs-profile' ? (
+        <p className="mt-2 text-sm text-muted">
+          Tell us what you make and we'll suggest fabrics that fit.{' '}
+          <Link to="/buyer/onboarding" className="font-semibold text-brand hover:underline">
+            Set up your profile
+          </Link>
+        </p>
+      ) : (
+        <>
+          <p className="mt-0.5 text-sm text-muted">Based on the fabrics and categories in your profile</p>
+          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-8 lg:grid-cols-4 lg:gap-x-6">
+            {state.status === 'loading'
+              ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : state.products.map((product) => (
+                  <ProductCard
+                    key={product._id}
+                    product={product}
+                    wishlisted={wishlistIds.has(product._id)}
+                    onToggleWishlist={onToggleWishlist}
+                    onAddToCart={quickAdd}
+                  />
+                ))}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
 
 function Discovery() {
   const navigate = useNavigate();
@@ -122,6 +181,8 @@ function Discovery() {
           </ul>
         </section>
       )}
+
+      <RecommendedForYou quickAdd={quickAdd} onToggleWishlist={onToggleWishlist} wishlistIds={wishlistIds} />
 
       {/* New arrivals */}
       <section className="mt-12" aria-labelledby="home-new">

@@ -2,7 +2,7 @@ const Notification = require('../../models/Notification');
 const { pagination } = require('../../utils/validate');
 
 // Best-effort notification creation — used internally by other modules
-// (orders, quotes, samples, reviews) as a side effect of their main action.
+// (orders, quotes, reviews) as a side effect of their main action.
 // Never throws: a notification failure should never break the primary flow.
 const notify = async (userId, { type = 'system', title, message, link }) => {
   try {

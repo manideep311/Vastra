@@ -11,10 +11,12 @@ const apiClient = axios.create({
 // `{ authRole: 'buyer' | 'supplier' }`; otherwise it follows the area of the
 // app the request comes from — the /supplier prefix mirrors the route split
 // in App.jsx (everything under /supplier is supplier-only, everything else
-// belongs to the buyer/public experience).
+// belongs to the buyer/public experience — including the public /suppliers
+// storefronts, which is why this matches the segment, not just the prefix).
 const resolveRole = (config) => {
   if (config.authRole) return config.authRole;
-  return window.location.pathname.startsWith('/supplier') ? 'supplier' : 'buyer';
+  const { pathname } = window.location;
+  return pathname === '/supplier' || pathname.startsWith('/supplier/') ? 'supplier' : 'buyer';
 };
 
 apiClient.interceptors.request.use((config) => {

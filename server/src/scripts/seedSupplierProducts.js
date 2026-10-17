@@ -6,13 +6,14 @@
  * skips ones that already exist instead of creating duplicates.
  *
  * If the supplier account doesn't exist yet, it's created (role: supplier,
- * onboarding marked complete) with a default password printed at the end.
+ * onboarding marked complete) using the password in SEED_DEMO_PASSWORD.
  *
  * Run from the server/ directory:
  *   node src/scripts/seedSupplierProducts.js
  */
 
 require('dotenv').config();
+const { readSeedPassword } = require('./seedPassword');
 const bcrypt = require('bcryptjs');
 const connectDB = require('../config/db');
 const User = require('../models/User');
@@ -21,7 +22,7 @@ const Product = require('../models/Product');
 const { generateEmbedding } = require('../modules/ai/ai.service');
 
 const SUPPLIER_EMAIL = 'test456@email.com';
-const DEFAULT_PASSWORD = 'Demo@1234';
+const DEFAULT_PASSWORD = readSeedPassword();
 
 const img = (filename, width = 900) =>
   `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(filename)}?width=${width}`;
@@ -235,7 +236,7 @@ async function run() {
       role: 'supplier',
       onboardingComplete: true,
     });
-    console.log(`Created new supplier account: ${SUPPLIER_EMAIL} (password: ${DEFAULT_PASSWORD})`);
+    console.log(`Created new supplier account: ${SUPPLIER_EMAIL} (password from SEED_DEMO_PASSWORD)`);
   } else {
     console.log(`Using existing supplier account: ${SUPPLIER_EMAIL}`);
   }

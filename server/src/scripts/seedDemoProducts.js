@@ -8,13 +8,14 @@
  *   node src/scripts/seedDemoProducts.js
  *
  * This WIPES existing products, supplier accounts/profiles, and everything
- * that references them (carts, orders, quotes, sample requests, reviews,
+ * that references them (carts, orders, quotes, reviews,
  * wishlists, notifications) before reseeding — so it's safe to re-run any
  * time you want a clean catalog. Buyer accounts and buyer profiles are left
  * untouched.
  */
 
 require('dotenv').config();
+const { readSeedPassword } = require('./seedPassword');
 const bcrypt = require('bcryptjs');
 const connectDB = require('../config/db');
 const User = require('../models/User');
@@ -23,7 +24,6 @@ const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const Quote = require('../models/Quote');
-const SampleRequest = require('../models/SampleRequest');
 const Review = require('../models/Review');
 const Wishlist = require('../models/Wishlist');
 const Notification = require('../models/Notification');
@@ -67,11 +67,11 @@ const IMAGES = {
   tweed: [img('Tweed fabric.jpg'), img('Harris tweed.jpg')],
 };
 
-const DEMO_PASSWORD = 'Demo@1234';
+const DEMO_PASSWORD = readSeedPassword();
 
 const SUPPLIERS = [
   {
-    email: 'ganges.cotton@demo.textilehub.in',
+    email: 'ganges.cotton@demo.vastra.example',
     businessName: 'Ganges Cotton Mills',
     businessType: 'Manufacturer',
     businessAddress: 'Sector 58, Industrial Area, Faridabad, Haryana',
@@ -124,7 +124,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'kanchipuram.silks@demo.textilehub.in',
+    email: 'kanchipuram.silks@demo.vastra.example',
     businessName: 'Kanchipuram Silk House',
     businessType: 'Manufacturer',
     businessAddress: 'Gandhi Road, Kanchipuram, Tamil Nadu',
@@ -177,7 +177,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'ludhiana.wool@demo.textilehub.in',
+    email: 'ludhiana.wool@demo.vastra.example',
     businessName: 'Ludhiana Wool & Woolens',
     businessType: 'Manufacturer',
     businessAddress: 'Industrial Focal Point, Ludhiana, Punjab',
@@ -229,7 +229,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'ahmedabad.denim@demo.textilehub.in',
+    email: 'ahmedabad.denim@demo.vastra.example',
     businessName: 'Ahmedabad Denim Works',
     businessType: 'Manufacturer',
     businessAddress: 'Narol Industrial Estate, Ahmedabad, Gujarat',
@@ -282,7 +282,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'kolkata.linen@demo.textilehub.in',
+    email: 'kolkata.linen@demo.vastra.example',
     businessName: 'Kolkata Linen Co.',
     businessType: 'Wholesaler',
     businessAddress: 'Burrabazar, Kolkata, West Bengal',
@@ -334,7 +334,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'surat.polyester@demo.textilehub.in',
+    email: 'surat.polyester@demo.vastra.example',
     businessName: 'Surat Synthetics & Blends',
     businessType: 'Manufacturer',
     businessAddress: 'Pandesara Industrial Estate, Surat, Gujarat',
@@ -387,7 +387,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'surat.velvet@demo.textilehub.in',
+    email: 'surat.velvet@demo.vastra.example',
     businessName: 'Surat Velvet & Corduroy Weavers',
     businessType: 'Manufacturer',
     businessAddress: 'Katargam Industrial Estate, Surat, Gujarat',
@@ -439,7 +439,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'bhilwara.textiles@demo.textilehub.in',
+    email: 'bhilwara.textiles@demo.vastra.example',
     businessName: 'Bhilwara Textile Exports',
     businessType: 'Manufacturer',
     businessAddress: 'RIICO Industrial Area, Bhilwara, Rajasthan',
@@ -491,7 +491,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'kolkata.jutecanvas@demo.textilehub.in',
+    email: 'kolkata.jutecanvas@demo.vastra.example',
     businessName: 'Kolkata Jute & Canvas Traders',
     businessType: 'Wholesaler',
     businessAddress: 'Strand Road, Kolkata, West Bengal',
@@ -543,7 +543,7 @@ const SUPPLIERS = [
     ],
   },
   {
-    email: 'ludhiana.tweed@demo.textilehub.in',
+    email: 'ludhiana.tweed@demo.vastra.example',
     businessName: 'Ludhiana Tweed Mills',
     businessType: 'Manufacturer',
     businessAddress: 'Gill Road, Ludhiana, Punjab',
@@ -610,7 +610,6 @@ async function seed() {
     Cart.deleteMany({}),
     Order.deleteMany({}),
     Quote.deleteMany({}),
-    SampleRequest.deleteMany({}),
     Review.deleteMany({}),
     Wishlist.deleteMany({}),
     Notification.deleteMany({}),
@@ -662,7 +661,7 @@ async function seed() {
   }
 
   console.log(`\nDone — ${SUPPLIERS.length} suppliers, ${totalProducts} products seeded.`);
-  console.log(`All demo suppliers use password: ${DEMO_PASSWORD}`);
+  console.log('All demo suppliers use the password set in SEED_DEMO_PASSWORD.');
   process.exit(0);
 }
 
