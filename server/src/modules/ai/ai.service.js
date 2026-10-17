@@ -83,6 +83,36 @@ const hydrateRanked = async (ranked) => {
 // Model calls
 // ---------------------------------------------------------------------------
 
+// Thrown when the embedding provider fails or returns something that isn't a
+// usable vector. Callers treat it like any AI outage and fall back.
+class EmbeddingError extends Error {
+  constructor(message, { status } = {}) {
+    super(message);
+    this.name = 'EmbeddingError';
+    this.status = status;
+  }
+}
+
+// Every vector must have the same length or similarity scores are meaningless.
+// HF_EMBEDDING_DIM pins it; otherwise the first valid response sets it.
+let embeddingDim = Number(process.env.HF_EMBEDDING_DIM) || null;
+
+const isNumberArray = (value) => Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === 'number' && Number.isFinite(v));
+
+const toSentenceVector = (data) => {
+  if (isNumberArray(data)) return data;
+  // Token-level output: mean-pool rows of equal length into one vector.
+  if (Array.isArray(data) && data.length > 0 && data.every(isNumberArray) && data.every((row) => row.length === data[0].length)) {
+    const dim = data[0].length;
+    const pooled = new Array(dim).fill(0);
+    for (const row of data) {
+      for (let i = 0; i < dim; i++) pooled[i] += row[i];
+    }
+    return pooled.map((v) => v / data.length);
+  }
+  throw new EmbeddingError('Embedding response was not a numeric vector');
+};
+
 const generateEmbedding = async (text) => {
   const key = text.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1000);
   if (embeddingCache.has(key)) {
@@ -105,22 +135,18 @@ const generateEmbedding = async (text) => {
   );
 
   if (!response.ok) {
-    throw new Error(`Embedding request failed with status ${response.status}`);
+    throw new EmbeddingError(`Embedding request failed with status ${response.status}`, { status: response.status });
   }
 
-  const data = await response.json();
+  const data = await response.json().catch(() => {
+    throw new EmbeddingError('Embedding response was not valid JSON');
+  });
+  const vector = toSentenceVector(data);
 
-  let vector = data;
-  if (Array.isArray(data[0])) {
-    // Token-level output — mean-pool into a single sentence vector.
-    const tokenCount = data.length;
-    const dim = data[0].length;
-    vector = new Array(dim).fill(0);
-    for (const tokenVec of data) {
-      for (let i = 0; i < dim; i++) vector[i] += tokenVec[i];
-    }
-    vector = vector.map((v) => v / tokenCount);
+  if (embeddingDim && vector.length !== embeddingDim) {
+    throw new EmbeddingError(`Embedding has ${vector.length} dimensions, expected ${embeddingDim}`);
   }
+  embeddingDim = embeddingDim || vector.length;
 
   rememberEmbedding(key, vector);
   return vector;
@@ -359,6 +385,7 @@ const getRecommendationsForBuyer = async (buyerId) => {
 };
 
 module.exports = {
+  EmbeddingError,
   testConnection,
   generateEmbedding,
   invalidateProductIndex,
