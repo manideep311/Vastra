@@ -11,7 +11,7 @@ Browser (React SPA on Vercel)
 Express API (Render) ──► MongoDB Atlas (data, product vectors, images in GridFS)
    │   └─ embedding model (all-MiniLM-L6-v2) runs in-process
    │
-   └──► OpenAI-compatible chat API (e.g. Groq free tier)
+   └──► Groq chat API (free tier)
 ```
 
 The client is a static Vite build. The API is a single Express process; it keeps a few caches in memory (the product vector index, an LRU of query embeddings, rate-limit counters), so it is designed to run as one instance.
@@ -82,7 +82,7 @@ Both model types are free to run.
   - `npm run model:download` stores the model in `server/.models` (about 23 MB) during the build, so a server waking from sleep doesn't download it.
   - `server.js` loads it right after startup.
   - `EMBEDDING_PROVIDER=huggingface` switches to the hosted Hugging Face API instead.
-- **Chat** goes through the OpenAI SDK to any compatible endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), such as Groq's free tier. Calls time out after 25 seconds and aren't retried, so a rate-limited call fails fast.
+- **Chat** goes to Groq's free tier through the OpenAI SDK (`LLM_API_KEY`, `LLM_MODEL`). `LLM_BASE_URL` can point it at any other OpenAI-compatible API. Calls time out after 25 seconds and aren't retried, so a rate-limited call fails fast.
 
 - **Embedding lifecycle.** Each product's name, category, description and tags are embedded when it is created, and again when that text changes or when the product has no vector yet. Vectors are validated (numeric, consistent dimension) and a bad one raises an `EmbeddingError`. If the model fails, the product is saved without a vector and `npm run backfill:embeddings` fills the gaps later. `-- --all` re-embeds everything, so all stored vectors come from the same model as the queries.
 - **Vector index.** Product vectors are loaded into memory, refreshed every 10 minutes or whenever a product's text changes, and ranked with cosine similarity in a linear scan.

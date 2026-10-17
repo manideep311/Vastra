@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/manideep311/Vastra/actions/workflows/ci.yml/badge.svg)](https://github.com/manideep311/Vastra/actions/workflows/ci.yml)
 
-Vastra is a B2B textile marketplace. Buyers (boutiques, garment makers, retailers) can source fabric straight from Indian mills and wholesalers. A retrieval-grounded AI assistant answers questions using the live product catalog. Built with React, Express and MongoDB. Embeddings come from a sentence-transformer model that runs inside the server, and replies from an LLM behind any OpenAI-compatible API, such as Groq's free tier. Both are free to run.
+Vastra is a B2B textile marketplace. Buyers (boutiques, garment makers, retailers) can source fabric straight from Indian mills and wholesalers. A retrieval-grounded AI assistant answers questions using the live product catalog. Built with React, Express and MongoDB. Embeddings come from a sentence-transformer model that runs inside the server, and replies come from an LLM on Groq's free tier. Both are free to run.
 
 **Live demo:** https://vastra-311.vercel.app
 
@@ -52,7 +52,7 @@ flowchart LR
     Q["Buyer question"] --> E["Embedding<br/>(all-MiniLM-L6-v2, runs in the server)"]
     E --> S["Cosine similarity over<br/>product vectors stored in MongoDB"]
     S --> T["Top 5 products"]
-    T --> L["LLM via an OpenAI-compatible API<br/>(products passed as delimited context)"]
+    T --> L["LLM on Groq<br/>(products passed as delimited context)"]
     L --> R["Grounded reply<br/>+ product cards"]
     E -.->|model unavailable| K["Keyword fallback<br/>(MongoDB text search)"]
     K --> T
@@ -73,13 +73,13 @@ The same vectors power AI search, similar products and recommendations. More det
 | Client | React 19, Vite 8, React Router 7, Tailwind CSS 4, Axios |
 | Server | Node.js 22, Express 5, Mongoose 9, JWT (jsonwebtoken + bcryptjs), helmet, express-rate-limit, multer, sharp |
 | Data | MongoDB Atlas (documents, product vectors, GridFS images) |
-| AI | `all-MiniLM-L6-v2` embeddings run locally with Transformers.js (ONNX Runtime, 8-bit quantized); chat through any OpenAI-compatible API (Groq, Hugging Face router, Gemini) |
+| AI | `all-MiniLM-L6-v2` embeddings run locally with Transformers.js (ONNX Runtime, 8-bit quantized); chat through Groq's free tier (any OpenAI-compatible API can be configured) |
 | Testing and CI | Jest, Supertest, mongodb-memory-server, oxlint, GitHub Actions |
 | Hosting | Vercel (client), Render (API) |
 
 ## Running locally
 
-You need Node.js 22+ and a MongoDB connection string (Atlas or local). For the assistant's replies you also need a free API key from an OpenAI-compatible provider, such as [Groq](https://console.groq.com).
+You need Node.js 22+ and a MongoDB connection string (Atlas or local). For the assistant's replies you also need a free [Groq API key](https://console.groq.com).
 
 ```bash
 git clone https://github.com/manideep311/Vastra.git
@@ -116,12 +116,12 @@ If products in your database were embedded with a different model, re-embed them
 | `NODE_ENV` | no | Set to `production` when deployed |
 | `CLIENT_ORIGIN` | in production | Comma-separated CORS allow-list, e.g. `https://vastra-311.vercel.app`. Production refuses to start without it. |
 | `TRUST_PROXY` | behind a proxy | Set to `1` on Render or behind one reverse proxy, so rate limits see the real client IP |
-| `LLM_BASE_URL` | for chat | OpenAI-compatible endpoint, e.g. `https://api.groq.com/openai/v1` |
-| `LLM_API_KEY` | for chat | API key for that provider |
-| `LLM_MODEL` | for chat | Model name the provider currently serves. Check the provider's model list, because models get renamed and retired. |
+| `LLM_API_KEY` | for chat | Groq API key |
+| `LLM_MODEL` | for chat | A model Groq currently serves, e.g. `openai/gpt-oss-20b`. Check Groq's model list, because models get renamed and retired. |
+| `LLM_BASE_URL` | no | Defaults to Groq (`https://api.groq.com/openai/v1`). Set it to use another OpenAI-compatible API. |
 | `EMBEDDING_PROVIDER` | no | `local` (default, free) or `huggingface` (hosted API; needs `HF_TOKEN` and `HF_EMBEDDING_MODEL`) |
 | `EMBEDDING_DIM` | no | Expected vector length (384 for all-MiniLM-L6-v2). If unset, it's learned from the first vector. |
-| `HF_TOKEN`, `HF_CHAT_MODEL`, `HF_EMBEDDING_MODEL` | no | Only for the Hugging Face providers. They also act as fallbacks when `LLM_API_KEY` and `LLM_MODEL` are empty. |
+| `HF_TOKEN`, `HF_EMBEDDING_MODEL` | no | Only with `EMBEDDING_PROVIDER=huggingface` |
 | `SEED_DEMO_PASSWORD` | for seeding | Password for the demo supplier accounts created by the seed scripts. At least 8 characters. |
 
 ### Client (`client/.env.local`)
@@ -136,7 +136,7 @@ On Render (or any Node host), use these settings:
 
 - **Build command:** `npm ci && npm run model:download`. The model then ships with the build instead of downloading when a sleeping server wakes up.
 - **Start command:** `npm start`
-- **Environment:** set `NODE_ENV=production`, `CLIENT_ORIGIN`, `TRUST_PROXY=1` and the `LLM_*` variables, plus the database and JWT settings.
+- **Environment:** set `NODE_ENV=production`, `CLIENT_ORIGIN`, `TRUST_PROXY=1`, `LLM_API_KEY` and `LLM_MODEL`, plus the database and JWT settings.
 
 ## Seed and maintenance scripts
 
