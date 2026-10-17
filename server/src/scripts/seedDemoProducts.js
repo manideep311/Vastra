@@ -8,7 +8,7 @@
  *   node src/scripts/seedDemoProducts.js
  *
  * This WIPES existing products, supplier accounts/profiles, and everything
- * that references them (carts, orders, quotes, sample requests, reviews,
+ * that references them (carts, orders, quotes, reviews,
  * wishlists, notifications) before reseeding — so it's safe to re-run any
  * time you want a clean catalog. Buyer accounts and buyer profiles are left
  * untouched.
@@ -24,7 +24,6 @@ const Product = require('../models/Product');
 const Cart = require('../models/Cart');
 const Order = require('../models/Order');
 const Quote = require('../models/Quote');
-const SampleRequest = require('../models/SampleRequest');
 const Review = require('../models/Review');
 const Wishlist = require('../models/Wishlist');
 const Notification = require('../models/Notification');
@@ -611,7 +610,6 @@ async function seed() {
     Cart.deleteMany({}),
     Order.deleteMany({}),
     Quote.deleteMany({}),
-    SampleRequest.deleteMany({}),
     Review.deleteMany({}),
     Wishlist.deleteMany({}),
     Notification.deleteMany({}),

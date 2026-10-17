@@ -5,8 +5,6 @@ const NOTIFICATION_TYPES = [
   'quote_request',
   'quote_response',
   'quote_accepted',
-  'sample_request',
-  'sample_status',
   'review',
   'system',
 ];
