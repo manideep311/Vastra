@@ -567,6 +567,7 @@ function ProductDetail() {
 
           {isLoggedIn ? (
             <form onSubmit={handleSubmitReview} className="mt-6 space-y-4">
+              <p className="text-xs text-muted">Reviews are open once an order containing this fabric is completed.</p>
               <StarInput value={reviewForm.rating} onChange={(rating) => setReviewForm((f) => ({ ...f, rating }))} />
               <div>
                 <label htmlFor="review-comment" className="label">
@@ -592,7 +593,7 @@ function ProductDetail() {
               <Link to="/buyer/login" state={{ from: location.pathname }} className="font-semibold text-brand hover:underline">
                 Sign in
               </Link>{' '}
-              to review this fabric.
+              to review a fabric you've ordered.
             </p>
           )}
         </div>

@@ -46,13 +46,13 @@ const upsertReview = async (buyerId, productId, input) => {
   const product = await Product.findById(productId).select('supplierId name');
   if (!product) throw httpError(404, 'Product not found');
 
-  const verifiedPurchase = Boolean(
-    await Order.exists({ buyerId, 'items.productId': productId, status: 'completed' })
-  );
+  // Only buyers who have received the product can review it.
+  const hasCompletedOrder = await Order.exists({ buyerId, 'items.productId': productId, status: 'completed' });
+  if (!hasCompletedOrder) throw httpError(403, 'You can review this product once an order containing it is completed.');
 
   const review = await Review.findOneAndUpdate(
     { productId, buyerId },
-    { rating, comment, verifiedPurchase },
+    { rating, comment, verifiedPurchase: true },
     { returnDocument: 'after', upsert: true, runValidators: true, setDefaultsOnInsert: true }
   );
 
