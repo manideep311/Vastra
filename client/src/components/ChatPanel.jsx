@@ -5,6 +5,7 @@ import { chatWithAssistant } from '../services/aiService';
 import { getErrorMessage } from '../utils/errors';
 import { formatINR } from '../utils/pricing';
 import ProductImage from './ui/ProductImage';
+import ChatMessageText from './ChatMessageText';
 import assistantIcon from '../assets/vastra-assistant-icon.webp';
 
 const GREETING = {
@@ -153,7 +154,7 @@ function ChatPanel({ open, onClose }) {
                       : 'rounded-bl-md bg-surface-2 text-ink'
                 }`}
               >
-                {msg.content}
+                {msg.role === 'assistant' && !msg.failed ? <ChatMessageText text={msg.content} /> : msg.content}
               </div>
               {msg.failed && (
                 <button
