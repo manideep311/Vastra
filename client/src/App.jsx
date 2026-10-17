@@ -23,6 +23,7 @@ const OrdersPage = lazy(() => import('./features/buyer/OrdersPage'));
 const DashboardPage = lazy(() => import('./features/buyer/DashboardPage'));
 const WishlistPage = lazy(() => import('./features/buyer/WishlistPage'));
 const BuyerQuotesPage = lazy(() => import('./features/buyer/BuyerQuotesPage'));
+const SupplierStorefrontPage = lazy(() => import('./features/buyer/SupplierStorefrontPage'));
 
 const SupplierLayout = lazy(() => import('./components/SupplierLayout'));
 const SupplierOnboardingPage = lazy(() => import('./features/supplier/SupplierOnboardingPage'));
@@ -73,6 +74,7 @@ function App() {
             <Route path="/home" element={<Discovery />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/:id" element={<ProductDetail />} />
+            <Route path="/suppliers/:id" element={<SupplierStorefrontPage />} />
             <Route path="/cart" element={<CartPage />} />
 
             {/* -------- Buyer-protected routes -------- */}

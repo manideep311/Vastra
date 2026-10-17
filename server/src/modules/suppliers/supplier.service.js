@@ -95,7 +95,11 @@ const getPublicProfile = async (supplierId) => {
       'businessName businessType businessAddress operatingHours productCategories fabricTypesOffered moq isVerified verificationBadge ratingAverage ratingCount completedOrders about logoUrl'
     ),
     Product.countDocuments({ supplierId, status: 'available' }),
-    Product.find({ supplierId, status: 'available' }).sort({ createdAt: -1 }).limit(12).lean(),
+    Product.find({ supplierId, status: 'available' })
+      .select('name category images price unit moq leadTime stock status ratingAverage ratingCount')
+      .sort({ createdAt: -1 })
+      .limit(12)
+      .lean(),
   ]);
   if (!profile) {
     const error = new Error('Supplier not found');

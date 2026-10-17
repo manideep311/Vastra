@@ -528,6 +528,10 @@ function ProductDetail() {
             </dl>
           </div>
           {supplier.about && <p className="mt-4 max-w-prose text-sm leading-relaxed text-ink-2">{supplier.about}</p>}
+          <Link to={`/suppliers/${product.supplierId}`} className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand hover:underline">
+            See all fabrics from {supplier.businessName}
+            <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+          </Link>
         </section>
       )}
 
