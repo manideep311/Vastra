@@ -6,8 +6,9 @@ process.env.JWT_SECRET = 'test-only-jwt-secret';
 process.env.HF_TOKEN = 'test-token';
 process.env.HF_CHAT_MODEL = 'test/chat-model';
 process.env.HF_EMBEDDING_MODEL = 'test/embedding-model';
-delete process.env.HF_EMBEDDING_DIM;
-delete process.env.CLIENT_ORIGIN;
+for (const key of ['HF_EMBEDDING_DIM', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL', 'CLIENT_ORIGIN']) {
+  delete process.env[key];
+}
 
 const offline = async (url) => {
   throw new Error(`Network access is disabled in tests (${url})`);

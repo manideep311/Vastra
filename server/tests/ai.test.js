@@ -88,10 +88,32 @@ describe('assistant fallback', () => {
     expect(sentMessages.at(-1).content).toMatch(/<catalog>[\s\S]*Washed Linen[\s\S]*<\/catalog>/);
   });
 
-  test('answers 503 when the chat model is unavailable', async () => {
+  test('falls back to keyword matches when the chat model is unreachable', async () => {
     await seedCatalog();
-    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'linen' }).expect(503);
-    expect(res.body.error).toMatch(/temporarily unavailable/);
+    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'linen' }).expect(200);
+
+    expect(res.body.assistantUnavailable).toBe(true);
+    expect(res.body.reply).toMatch(/temporarily unavailable/);
+    expect(res.body.referencedProducts.map((p) => p.name)).toEqual(['Washed Linen']);
+  });
+
+  test('falls back to keyword matches when the chat model is rate limited', async () => {
+    await seedCatalog();
+    mockFetch(async (url) => {
+      if (isEmbeddingCall(url)) return jsonResponse([0, 1, 0]);
+      if (isChatCall(url)) return jsonResponse({ error: { message: 'Rate limit reached' } }, 429);
+      throw new Error(`unexpected request ${url}`);
+    });
+
+    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'denim' }).expect(200);
+    expect(res.body.assistantUnavailable).toBe(true);
+    expect(res.body.referencedProducts.map((p) => p.name)).toEqual(['Raw Denim']);
+  });
+
+  test('says so plainly when the model is down and nothing matches', async () => {
+    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'velvet' }).expect(200);
+    expect(res.body.referencedProducts).toEqual([]);
+    expect(res.body.reply).toMatch(/temporarily unavailable.*browse the catalog/);
   });
 
   test('suppliers can still list products while embeddings are down', async () => {

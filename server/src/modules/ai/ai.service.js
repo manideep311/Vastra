@@ -1,4 +1,4 @@
-const hfClient = require('./ai.client');
+const { llmClient, LLM_MODEL } = require('./ai.client');
 const Product = require('../../models/Product');
 const BuyerProfile = require('../../models/BuyerProfile');
 const { cosineSimilarity } = require('../../utils/similarity');
@@ -154,7 +154,7 @@ const generateEmbedding = async (text) => {
 
 const complete = async (messages) => {
   try {
-    const response = await hfClient.chat.completions.create({ model: process.env.HF_CHAT_MODEL, messages });
+    const response = await llmClient.chat.completions.create({ model: LLM_MODEL, messages });
     const content = response.choices?.[0]?.message?.content;
     if (!content) throw new Error('Empty completion');
     return content.trim();
@@ -251,6 +251,7 @@ const chatWithAssistant = async (rawMessage, rawHistory = [], productId = null) 
     const product = await Product.findById(productId).select(RESULT_FIELDS).lean();
     if (product) contextProducts = [product];
   }
+  const fromProductPage = contextProducts.length > 0;
   if (contextProducts.length === 0) {
     try {
       contextProducts = await semanticSearch(message, 5);
@@ -260,16 +261,29 @@ const chatWithAssistant = async (rawMessage, rawHistory = [], productId = null) 
     }
   }
 
-  const reply = await complete([
-    { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
-    ...history,
-    { role: 'user', content: withCatalogContext(contextProducts, message) },
-  ]);
+  const toCards = (products) => products.map(({ description, similarityScore, score, ...rest }) => rest);
 
-  return {
-    reply,
-    referencedProducts: contextProducts.map(({ description, similarityScore, ...rest }) => rest),
-  };
+  try {
+    const reply = await complete([
+      { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: withCatalogContext(contextProducts, message) },
+    ]);
+    return { reply, referencedProducts: toCards(contextProducts) };
+  } catch (error) {
+    if (error.statusCode !== 503) throw error;
+    // The chat model is down or rate limited: still answer, with plain
+    // keyword matches (or the product the buyer is looking at).
+    const fallbackProducts = fromProductPage ? contextProducts : await keywordSearch(message, 5);
+    return {
+      reply:
+        fallbackProducts.length > 0
+          ? 'The assistant is temporarily unavailable, so here are catalog matches for your message instead.'
+          : 'The assistant is temporarily unavailable. Please try again in a moment, or browse the catalog.',
+      referencedProducts: toCards(fallbackProducts),
+      assistantUnavailable: true,
+    };
+  }
 };
 
 const getSimilarProducts = async (productId, limit = 5) => {
