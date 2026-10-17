@@ -10,12 +10,6 @@ import { ErrorState, LoadingSeam } from '../../components/ui/States';
 import { useSlowLoading } from '../../hooks/useSlowLoading';
 import { getErrorMessage } from '../../utils/errors';
 
-const HOW_IT_WORKS = [
-  { title: 'Clear minimums', body: 'Every listing shows its MOQ up front, and the cart enforces it — no surprises at checkout.' },
-  { title: 'Bulk quotes', body: 'Need a large run? Request a quote and negotiate price and lead time directly with the supplier.' },
-  { title: 'Tiered pricing', body: 'Per-unit prices drop automatically as your quantity crosses a supplier’s bulk tiers.' },
-];
-
 // Products matched to the buyer's onboarding answers (embedding search over
 // the catalog). Guests see nothing; buyers who skipped onboarding get a
 // prompt to finish it; if the AI service is down the section stays hidden.
@@ -221,17 +215,6 @@ function Discovery() {
         <Link to="/products" className="btn btn-secondary mt-8 w-full sm:hidden">
           Browse all fabrics
         </Link>
-      </section>
-
-      {/* How buying works */}
-      <section className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-line bg-line md:grid-cols-3" aria-label="How buying on Vastra works">
-        {HOW_IT_WORKS.map((item, i) => (
-          <div key={item.title} className="bg-surface p-6">
-            <p className="font-serif-display text-2xl text-accent">0{i + 1}</p>
-            <h3 className="mt-3 font-display text-base font-bold text-ink">{item.title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-muted">{item.body}</p>
-          </div>
-        ))}
       </section>
     </div>
   );
