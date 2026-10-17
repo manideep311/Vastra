@@ -11,8 +11,8 @@
     "migrate:images": "node src/scripts/migrateUploadsToGridFS.js"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Manideep Chittimodu",
+  "license": "MIT",
   "type": "commonjs",
   "dependencies": {
     "bcryptjs": "^3.0.3",
