@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { MagnifyingGlassIcon, XMarkIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/20/solid';
+import { MagnifyingGlassIcon, XMarkIcon, AdjustmentsHorizontalIcon, SparklesIcon } from '@heroicons/react/20/solid';
 import { Squares2X2Icon } from '@heroicons/react/24/outline';
 import { getProducts, getProductCategoryStats } from '../../services/productService';
+import { aiSearch } from '../../services/aiService';
 import { useProductActions } from '../../hooks/useProductActions';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue';
 import { useSlowLoading } from '../../hooks/useSlowLoading';
@@ -25,6 +26,9 @@ function ProductsPage() {
   const query = searchParams.get('q') || '';
   const category = searchParams.get('category') || '';
   const sort = SORT_OPTIONS.some((o) => o.value === searchParams.get('sort')) ? searchParams.get('sort') : 'newest';
+  // AI search ranks products by meaning (embeddings) instead of keyword overlap.
+  const aiMode = searchParams.get('mode') === 'ai';
+  const aiResults = aiMode && Boolean(query);
 
   const [searchInput, setSearchInput] = useState(query);
   const debouncedSearch = useDebouncedValue(searchInput.trim(), 350);
@@ -34,6 +38,7 @@ function ProductsPage() {
   const [status, setStatus] = useState('loading'); // loading | refreshing | ready | error
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [categories, setCategories] = useState([]);
   const requestRef = useRef(null);
 
@@ -56,12 +61,13 @@ function ProductsPage() {
 
   // Typing settles for 350ms before it becomes a request. Only a *new*
   // debounced value is pushed, so Back/chip navigation is never overwritten.
+  // AI search costs inference quota, so it only runs when the buyer submits.
   const lastPushed = useRef(query);
   useEffect(() => {
-    if (debouncedSearch === lastPushed.current) return;
+    if (aiMode || debouncedSearch === lastPushed.current) return;
     lastPushed.current = debouncedSearch;
     updateParams({ q: debouncedSearch });
-  }, [debouncedSearch, updateParams]);
+  }, [aiMode, debouncedSearch, updateParams]);
 
   // Keep the box in sync when the URL changes from outside (Back, chip links).
   useEffect(() => {
@@ -85,10 +91,22 @@ function ProductsPage() {
       if (query) params.keyword = query;
       if (category) params.category = category;
 
+      if (aiResults) {
+        try {
+          const { results } = await aiSearch(query, { signal: controller.signal });
+          const matched = category ? results.filter((p) => p.category === category) : results;
+          return { products: matched, pagination: { page: 1, pages: 1, total: matched.length }, notice: '' };
+        } catch (err) {
+          if (err.code === 'ERR_CANCELED') throw err;
+          const data = await getProducts(params, { signal: controller.signal });
+          return { ...data, notice: 'AI search is unavailable right now, so these are keyword matches.' };
+        }
+      }
+
       const data = await getProducts(params, { signal: controller.signal });
-      return data;
+      return { ...data, notice: '' };
     },
-    [query, category, sort]
+    [query, category, sort, aiResults]
   );
 
   const load = useCallback(async () => {
@@ -100,6 +118,7 @@ function ProductsPage() {
       const data = await fetchPage(1);
       setProducts(data.products);
       setPagination(data.pagination);
+      setNotice(data.notice);
       setStatus('ready');
     } catch (err) {
       if (err.code === 'ERR_CANCELED') return;
@@ -127,6 +146,11 @@ function ProductsPage() {
     } finally {
       setLoadingMore(false);
     }
+  };
+
+  const setMode = (ai) => {
+    if (ai === aiMode) return;
+    updateParams({ mode: ai ? 'ai' : '', q: searchInput.trim() });
   };
 
   const clearFilters = () => {
@@ -173,7 +197,7 @@ function ProductsPage() {
               type="search"
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by fabric, weave or use — e.g. “linen shirting”"
+              placeholder={aiMode ? 'Describe what you need — e.g. “breathable fabric for summer kurtas”' : 'Search by fabric, weave or use — e.g. “linen shirting”'}
               className="input rounded-full pl-10 pr-10 [&::-webkit-search-cancel-button]:hidden"
               maxLength={100}
               autoComplete="off"
@@ -201,6 +225,8 @@ function ProductsPage() {
               id="catalog-sort"
               value={sort}
               onChange={(e) => updateParams({ sort: e.target.value === 'newest' ? '' : e.target.value })}
+              disabled={aiResults}
+              title={aiResults ? 'AI results are ranked by relevance' : undefined}
               className="input w-11 appearance-none rounded-full pl-9 text-transparent sm:w-48 sm:pl-4 sm:text-ink"
             >
               {SORT_OPTIONS.map((opt) => (
@@ -210,6 +236,29 @@ function ProductsPage() {
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+          <div className="inline-flex rounded-full border border-line bg-surface p-0.5" role="group" aria-label="Search mode">
+            {[
+              { ai: false, label: 'Keyword' },
+              { ai: true, label: 'AI search' },
+            ].map((m) => (
+              <button
+                key={m.label}
+                type="button"
+                onClick={() => setMode(m.ai)}
+                aria-pressed={aiMode === m.ai}
+                className={`inline-flex h-7 items-center gap-1 rounded-full px-3 text-[13px] font-medium transition-colors duration-150 ${
+                  aiMode === m.ai ? 'bg-ink text-white' : 'text-ink-2 hover:text-ink'
+                }`}
+              >
+                {m.ai && <SparklesIcon className={`h-3.5 w-3.5 ${aiMode ? 'text-amber-200' : 'text-accent'}`} aria-hidden="true" />}
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {aiMode && <p className="text-xs text-muted">Describe the fabric in your own words, then press Enter.</p>}
         </div>
 
         {categories.length > 0 && (
@@ -250,11 +299,14 @@ function ProductsPage() {
               in <span className="font-semibold text-ink">{category}</span>
             </>
           )}
+          {aiResults && !notice && <span className="text-muted"> · ranked by relevance</span>}
           <button type="button" onClick={clearFilters} className="ml-3 font-semibold text-brand hover:underline">
             Clear filters
           </button>
         </p>
       )}
+
+      {notice && status === 'ready' && <p className="mt-2 text-sm text-warning">{notice}</p>}
 
       <section
         aria-label="Products"

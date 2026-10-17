@@ -38,3 +38,9 @@ export const suggestQuote = async ({ productId, requestedQuantity, targetPrice }
   );
   return response.data;
 };
+
+// Semantic search: products ranked by meaning rather than keyword overlap.
+export const aiSearch = async (query, { signal } = {}) => {
+  const response = await apiClient.post('/ai/search', { query }, { authRole: 'buyer', signal, timeout: 45_000 });
+  return response.data;
+};
