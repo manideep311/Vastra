@@ -27,3 +27,14 @@ export const getRecommendations = async ({ signal } = {}) => {
   const response = await apiClient.get('/ai/recommendations', { authRole: 'buyer', signal, timeout: 45_000 });
   return response.data;
 };
+
+// Advisory price and lead time for a supplier answering a quote request.
+// The supplier always reviews and sends the final numbers themselves.
+export const suggestQuote = async ({ productId, requestedQuantity, targetPrice }) => {
+  const response = await apiClient.post(
+    '/ai/suggest-quote',
+    { productId, requestedQuantity, targetPrice },
+    { authRole: 'supplier', timeout: 45_000 }
+  );
+  return response.data;
+};
