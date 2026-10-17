@@ -179,9 +179,6 @@ const parseJsonObject = (raw) => {
 // Features
 // ---------------------------------------------------------------------------
 
-const testConnection = async () =>
-  complete([{ role: 'user', content: 'Reply with exactly one sentence confirming you are working.' }]);
-
 const semanticSearch = async (queryText, limit = 10) => {
   const query = requireString(queryText, 'Search query', { max: 300 });
   const limitNum = Math.min(20, Math.max(1, Number(limit) || 10));
@@ -289,32 +286,6 @@ const getSimilarProducts = async (productId, limit = 5) => {
   return hydrateRanked(ranked);
 };
 
-const compareProducts = async (productIds) => {
-  if (!Array.isArray(productIds) || productIds.length < 2 || productIds.length > 4 || !productIds.every(isObjectId)) {
-    throw httpError(400, 'Choose between 2 and 4 products to compare');
-  }
-  const products = await Product.find({ _id: { $in: productIds } }).select(RESULT_FIELDS).lean();
-  if (products.length < 2) throw httpError(400, 'Need at least 2 valid products to compare');
-
-  const productText = products
-    .map(
-      (p, i) =>
-        `Product ${i + 1}: ${p.name} (${p.category})\nDescription: ${(p.description || '').slice(0, 400)}\nPrice: ₹${p.price}/${p.unit || 'unit'}\nColors: ${(p.colors || []).join(', ')}\nStock: ${p.stock}`
-    )
-    .join('\n\n');
-
-  const comparison = await complete([
-    {
-      role: 'system',
-      content:
-        'You are a fabric marketplace assistant. Compare the given products for a B2B buyer, highlighting differences in price, suitability, and characteristics. Be concise and use a short structured comparison.',
-    },
-    { role: 'user', content: productText },
-  ]);
-
-  return { comparison, products };
-};
-
 const suggestCategory = async (rawName, rawDescription) => {
   const name = requireString(rawName, 'Product name', { max: 120 });
   const description = optionalString(rawDescription, 'Description', { max: 2000 }) || '';
@@ -400,13 +371,11 @@ const getRecommendationsForBuyer = async (buyerId) => {
 
 module.exports = {
   EmbeddingError,
-  testConnection,
   generateEmbedding,
   invalidateProductIndex,
   semanticSearch,
   chatWithAssistant,
   getSimilarProducts,
-  compareProducts,
   suggestCategory,
   suggestQuoteForProduct,
   getRecommendationsForBuyer,

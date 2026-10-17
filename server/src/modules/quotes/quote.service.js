@@ -3,7 +3,7 @@ const Product = require('../../models/Product');
 const Cart = require('../../models/Cart');
 const { notify } = require('../notifications/notification.service');
 const { assertCartEditable } = require('../cart/cart.service');
-const { httpError, assertObjectId, requireNumber, optionalNumber, requireString, optionalString } = require('../../utils/validate');
+const { httpError, assertObjectId, requireNumber, optionalNumber, optionalString } = require('../../utils/validate');
 
 const populateOpts = [
   { path: 'productId', select: 'name images category price unit moq' },
@@ -32,7 +32,6 @@ const requestQuote = async (buyerId, { productId, requestedQuantity: rawQuantity
     requestedQuantity,
     targetPrice,
     message,
-    messages: message ? [{ sender: 'buyer', text: message }] : [],
   });
 
   notify(product.supplierId, {
@@ -199,29 +198,6 @@ const rejectQuote = async (buyerId, quoteId) => {
   return quote.populate(populateOpts);
 };
 
-const addMessage = async (userId, role, quoteId, rawText) => {
-  const text = requireString(rawText, 'Message', { max: 1000 });
-  const ownerField = role === 'buyer' ? 'buyerId' : 'supplierId';
-  const quote = await Quote.findOne({ _id: quoteId, [ownerField]: userId });
-  if (!quote) {
-    const error = new Error('Quote not found');
-    error.statusCode = 404;
-    throw error;
-  }
-  quote.messages.push({ sender: role, text });
-  await quote.save();
-
-  const recipient = role === 'buyer' ? quote.supplierId : quote.buyerId;
-  notify(recipient, {
-    type: 'quote_response',
-    title: 'New message on your quote',
-    message: text.slice(0, 140),
-    link: role === 'buyer' ? '/supplier/quotes' : '/quotes',
-  });
-
-  return quote.populate(populateOpts);
-};
-
 module.exports = {
   requestQuote,
   listBuyerQuotes,
@@ -231,5 +207,4 @@ module.exports = {
   declineQuote,
   acceptQuote,
   rejectQuote,
-  addMessage,
 };
