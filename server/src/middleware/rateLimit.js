@@ -15,14 +15,25 @@ const apiLimiter = rateLimit({
   message: limitMessage('Too many requests. Please slow down and try again shortly.'),
 });
 
-// Login/register: slows credential stuffing and account enumeration.
-const authLimiter = rateLimit({
+// Login: slows credential stuffing. Successful sign-ins don't count, so a
+// buyer who logs in often is never locked out.
+const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   message: limitMessage('Too many sign-in attempts. Please wait a few minutes and try again.'),
+});
+
+// Registration: every attempt counts, successful or not, so one client can't
+// mass-create accounts.
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: limitMessage('Too many accounts created from this network. Please try again later.'),
 });
 
 // Every AI call costs real inference quota. Anonymous visitors get a small
@@ -36,4 +47,4 @@ const aiLimiter = rateLimit({
   message: limitMessage('The assistant is getting a lot of requests from you. Please try again in a few minutes.'),
 });
 
-module.exports = { apiLimiter, authLimiter, aiLimiter };
+module.exports = { apiLimiter, loginLimiter, registerLimiter, aiLimiter };
