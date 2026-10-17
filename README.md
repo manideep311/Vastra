@@ -10,7 +10,19 @@ The API runs on Render's free tier, so the first request after a quiet period ca
 
 ## Screenshots
 
-[TODO: owner]
+| Vastra Assistant | AI search |
+| --- | --- |
+| ![The assistant answering a budget question with matching fabrics and product cards](docs/screenshots/assistant.webp) | ![The catalog ranked by meaning for "breathable fabric for summer kurtas"](docs/screenshots/ai-search.webp) |
+
+| Recommendations | Product page |
+| --- | --- |
+| ![Home page recommendations based on the buyer's onboarding profile](docs/screenshots/recommendations.webp) | ![Product page with bulk pricing, minimum order, stock and lead time](docs/screenshots/product.webp) |
+
+| Supplier quote suggestion | Supplier dashboard |
+| --- | --- |
+| ![A bulk quote request with the suggested price and lead time filled in](docs/screenshots/supplier-quote.webp) | ![Supplier dashboard with listings, pending orders, open quotes and sales](docs/screenshots/supplier-dashboard.webp) |
+
+These screenshots come from a local copy of the app, populated with the live catalog's products and two demo accounts. The orders and quote shown were placed by the demo buyer. The assistant's reply and the price suggestion are real responses from the configured LLM.
 
 ## Features
 
