@@ -1,7 +1,8 @@
 /**
- * Measures the assistant's retrieval step against a small labelled question
- * set: how many products have embeddings, how long retrieval takes, and how
- * often an expected product appears in the top 5 results (hit@5).
+ * Measures the assistant's retrieval step against a labelled question set:
+ * how many products have embeddings, how long retrieval takes, and how often
+ * an expected product appears first (hit@1) or in the top 5 (hit@5), plus
+ * mean reciprocal rank. Expected products can be given by ID or by name.
  *
  * Retrieval here is exactly what the assistant uses: embed the question with
  * the configured embedding model, then rank stored product vectors by cosine
@@ -20,6 +21,7 @@ const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const Product = require('../models/Product');
 const { semanticSearch, EMBEDDING_PROVIDER } = require('../modules/ai/ai.service');
+const { normaliseName, resolveExpected, firstHitRank, summarise } = require('./evalScoring');
 
 const TOP_K = 5;
 
@@ -40,53 +42,79 @@ async function run() {
 
   await connectDB();
 
-  const [totalProducts, embeddedProducts] = await Promise.all([
+  const [totalProducts, embeddedProducts, catalog] = await Promise.all([
     Product.countDocuments(),
     Product.countDocuments({ 'embeddingVector.0': { $exists: true } }),
+    Product.find({}, { name: 1 }).lean(),
   ]);
+  const existingIds = new Set(catalog.map((p) => p._id.toString()));
+  const idsByName = new Map();
+  for (const p of catalog) {
+    const key = normaliseName(p.name);
+    idsByName.set(key, [...(idsByName.get(key) || []), p._id.toString()]);
+  }
+
   console.log(`\nQuestion set: ${path.relative(process.cwd(), file)} (${questions.length} questions)`);
   console.log(`Products with embeddings: ${embeddedProducts} of ${totalProducts}\n`);
 
   const latencies = [];
-  let hits = 0;
+  const ranks = [];
+  const unmatchedNames = new Set();
   let failures = 0;
+  let skipped = 0;
 
   for (const [i, item] of questions.entries()) {
-    const expected = new Set(item.expectedProductIds || []);
-    const missing = await Product.countDocuments({ _id: { $in: [...expected] } }).then((n) => expected.size - n);
+    const { expected, missingNames, missingIds } = resolveExpected(item, idsByName, existingIds);
+    missingNames.forEach((name) => unmatchedNames.add(name));
+    console.log(`${i + 1}. ${item.question}`);
+
+    if (expected.size === 0) {
+      skipped += 1;
+      console.log('   SKIP  none of the expected products are in this database');
+      console.log('');
+      continue;
+    }
+
     const started = process.hrtime.bigint();
     try {
       const results = await semanticSearch(item.question, TOP_K);
       const ms = Number(process.hrtime.bigint() - started) / 1e6;
       latencies.push(ms);
-      const hit = results.some((r) => expected.has(r._id.toString()));
-      if (hit) hits += 1;
+      const rank = firstHitRank(results.map((r) => r._id.toString()), expected);
+      ranks.push(rank);
 
-      console.log(`${i + 1}. ${item.question}`);
-      console.log(`   ${hit ? 'HIT ' : 'MISS'}  ${ms.toFixed(0)} ms`);
-      results.forEach((r, rank) => {
+      console.log(`   ${rank ? `HIT@${rank}` : 'MISS  '}  ${ms.toFixed(0)} ms`);
+      results.forEach((r, position) => {
         const mark = expected.has(r._id.toString()) ? '*' : ' ';
-        console.log(`   ${mark} ${rank + 1}. ${r.name} (${r.similarityScore.toFixed(3)})`);
+        console.log(`   ${mark} ${position + 1}. ${r.name} (${r.similarityScore.toFixed(3)})`);
       });
-      if (missing > 0) console.log(`   note: ${missing} expected product ID(s) are not in this database`);
+      if (missingNames.length || missingIds.length) {
+        console.log(`   note: ${missingNames.length + missingIds.length} expected product(s) not found in this database`);
+      }
     } catch (error) {
       failures += 1;
-      console.log(`${i + 1}. ${item.question}`);
       console.log(`   FAILED  ${error.message}`);
     }
     console.log('');
   }
 
-  const answered = questions.length - failures;
+  const scores = summarise(ranks, TOP_K);
+  const pct = (value) => `${(value * 100).toFixed(0)}%`;
   console.log('Summary');
   console.log(`  Embedding provider: ${EMBEDDING_PROVIDER}`);
   console.log(`  Products with embeddings: ${embeddedProducts}/${totalProducts}`);
-  if (answered > 0) {
+  if (scores.n > 0) {
     const average = latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length;
-    console.log(`  Retrieval latency: average ${average.toFixed(0)} ms, p95 ${percentile(latencies, 95).toFixed(0)} ms (n=${latencies.length})`);
-    console.log(`  hit@${TOP_K}: ${hits}/${answered} (${((hits / answered) * 100).toFixed(0)}%)`);
+    console.log(`  Retrieval latency: average ${average.toFixed(0)} ms, median ${percentile(latencies, 50).toFixed(0)} ms, p95 ${percentile(latencies, 95).toFixed(0)} ms (n=${latencies.length})`);
+    console.log(`  Scored questions: ${scores.n}`);
+    console.log(`  hit@1: ${pct(scores.hitAt1)}   hit@${TOP_K}: ${pct(scores.hitAtK)}   MRR@${TOP_K}: ${scores.mrr.toFixed(3)}`);
   }
-  if (failures > 0) console.log(`  Failed questions: ${failures} (not counted in hit@${TOP_K})`);
+  if (skipped > 0) console.log(`  Skipped (no expected product in this database): ${skipped}`);
+  if (failures > 0) console.log(`  Failed questions: ${failures} (not scored)`);
+  if (unmatchedNames.size > 0) {
+    console.log(`  Expected names not found in the catalog (check spelling or update eval/questions.json):`);
+    [...unmatchedNames].sort().forEach((name) => console.log(`    - ${name}`));
+  }
   console.log(`  Process memory (RSS): ${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`);
 
   await mongoose.disconnect();
