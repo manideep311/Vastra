@@ -8,7 +8,8 @@
     "dev": "nodemon src/server.js",
     "seed:demo": "node src/scripts/seedDemoProducts.js",
     "seed:supplier": "node src/scripts/seedSupplierProducts.js",
-    "migrate:images": "node src/scripts/migrateUploadsToGridFS.js"
+    "migrate:images": "node src/scripts/migrateUploadsToGridFS.js",
+    "backfill:embeddings": "node src/scripts/backfillEmbeddings.js"
   },
   "keywords": [],
   "author": "Manideep Chittimodu",

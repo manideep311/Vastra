@@ -143,6 +143,10 @@ const reconcileStatus = (product) => {
 
 const embeddingTextFor = (p) => `${p.name} ${p.category} ${p.description || ''} ${(p.tags || []).join(' ')}`;
 
+// Products with no usable vector are invisible to semantic search and
+// similar-product suggestions (e.g. saved while the AI provider was down).
+const MISSING_EMBEDDING = { 'embeddingVector.0': { $exists: false } };
+
 // Embeddings power semantic search/similar products, but a slow or failing
 // AI provider must never block a supplier from listing a product.
 const tryGenerateEmbedding = async (product) => {
@@ -201,13 +205,20 @@ const updateProduct = async (supplierId, productId, data) => {
   }
   reconcileStatus(product);
 
-  if (textChanged) {
+  // Re-embed when the searchable text changed, or when an earlier save never
+  // got a vector at all.
+  const missingVector = !textChanged && Boolean(await Product.exists({ _id: product._id, ...MISSING_EMBEDDING }));
+  let embedded = false;
+  if (textChanged || missingVector) {
     const vector = await tryGenerateEmbedding(product);
-    if (vector) product.embeddingVector = vector;
+    if (vector) {
+      product.embeddingVector = vector;
+      embedded = true;
+    }
   }
 
   await product.save();
-  if (textChanged) invalidateProductIndex();
+  if (textChanged || embedded) invalidateProductIndex();
   await removeStoredImages(removedImages);
 
   const saved = product.toObject();
@@ -290,6 +301,8 @@ const addProductImages = async (supplierId, productId, files) => {
 };
 
 module.exports = {
+  embeddingTextFor,
+  MISSING_EMBEDDING,
   listProducts,
   getProductById,
   createProduct,
