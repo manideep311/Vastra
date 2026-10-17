@@ -20,3 +20,10 @@ export const categorizeProduct = async (name, description) => {
   const response = await apiClient.post('/ai/categorize', { name, description }, { authRole: 'supplier', timeout: 45_000 });
   return response.data;
 };
+
+// Products matched to the signed-in buyer's onboarding profile. The server
+// answers 400 when the buyer hasn't completed onboarding yet.
+export const getRecommendations = async ({ signal } = {}) => {
+  const response = await apiClient.get('/ai/recommendations', { authRole: 'buyer', signal, timeout: 45_000 });
+  return response.data;
+};

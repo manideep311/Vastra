@@ -67,7 +67,7 @@ function OnboardingPage() {
     <OnboardingShell
       step="Buyer setup · 1 minute"
       title="Tell us about your business"
-      description="We use this to recommend fabrics and suppliers that fit what you make. You can skip it and browse right away."
+      description="We use this to recommend fabrics that fit what you make on your home page. You can skip it and browse right away."
     >
       <form onSubmit={handleSubmit} className="card space-y-6 p-6 sm:p-8">
         <div className="grid gap-5 sm:grid-cols-2">
