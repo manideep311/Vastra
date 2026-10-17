@@ -95,7 +95,7 @@ function SupplierDashboardPage() {
   const outOfStock = data.inventoryAlerts.filter((p) => p.stock <= 0).length;
   const attention = [
     data.pendingOrders > 0 && { to: '/supplier/orders', text: `${data.pendingOrders} new order${data.pendingOrders === 1 ? '' : 's'} waiting for acceptance` },
-    data.pendingQuotes > 0 && { to: '/supplier/quotes', text: `${data.pendingQuotes} quote request${data.pendingQuotes === 1 ? '' : 's'} need a price` },
+    data.pendingQuotes > 0 && { to: '/supplier/quotes', text: `${data.pendingQuotes} quote ${data.pendingQuotes === 1 ? 'request needs' : 'requests need'} a price` },
     outOfStock > 0 && { to: '/supplier/inventory', text: `${outOfStock} product${outOfStock === 1 ? ' is' : 's are'} out of stock and hidden from buyers` },
   ].filter(Boolean);
 
