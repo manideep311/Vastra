@@ -7,6 +7,7 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "jest --runInBand",
+    "model:download": "node src/scripts/downloadModel.js",
     "seed:demo": "node src/scripts/seedDemoProducts.js",
     "seed:supplier": "node src/scripts/seedSupplierProducts.js",
     "migrate:images": "node src/scripts/migrateUploadsToGridFS.js",
@@ -21,6 +22,7 @@
   "license": "MIT",
   "type": "commonjs",
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

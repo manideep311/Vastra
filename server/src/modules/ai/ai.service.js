@@ -1,4 +1,5 @@
 const { llmClient, LLM_MODEL } = require('./ai.client');
+const { embedLocally } = require('./localEmbedder');
 const Product = require('../../models/Product');
 const BuyerProfile = require('../../models/BuyerProfile');
 const { cosineSimilarity } = require('../../utils/similarity');
@@ -94,8 +95,13 @@ class EmbeddingError extends Error {
 }
 
 // Every vector must have the same length or similarity scores are meaningless.
-// HF_EMBEDDING_DIM pins it; otherwise the first valid response sets it.
-let embeddingDim = Number(process.env.HF_EMBEDDING_DIM) || null;
+// EMBEDDING_DIM pins it; otherwise the first valid vector sets it.
+let embeddingDim = Number(process.env.EMBEDDING_DIM || process.env.HF_EMBEDDING_DIM) || null;
+
+// 'local' (default) runs the model in this process; 'huggingface' calls the
+// hosted feature-extraction API. Stored vectors must all come from one
+// provider — after switching, re-embed with `npm run backfill:embeddings -- --all`.
+const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER === 'huggingface' ? 'huggingface' : 'local';
 
 const isNumberArray = (value) => Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === 'number' && Number.isFinite(v));
 
@@ -113,14 +119,7 @@ const toSentenceVector = (data) => {
   throw new EmbeddingError('Embedding response was not a numeric vector');
 };
 
-const generateEmbedding = async (text) => {
-  const key = text.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1000);
-  if (embeddingCache.has(key)) {
-    const cached = embeddingCache.get(key);
-    rememberEmbedding(key, cached); // refresh LRU position
-    return cached;
-  }
-
+const embedWithHuggingFace = async (text) => {
   const response = await fetch(
     `https://router.huggingface.co/hf-inference/models/${process.env.HF_EMBEDDING_MODEL}/pipeline/feature-extraction`,
     {
@@ -141,7 +140,29 @@ const generateEmbedding = async (text) => {
   const data = await response.json().catch(() => {
     throw new EmbeddingError('Embedding response was not valid JSON');
   });
-  const vector = toSentenceVector(data);
+  return toSentenceVector(data);
+};
+
+const embedWithLocalModel = async (text) => {
+  let vector;
+  try {
+    vector = await embedLocally(text.trim().slice(0, 2000));
+  } catch (error) {
+    throw new EmbeddingError(`Local embedding model failed: ${error.message}`);
+  }
+  if (!isNumberArray(vector)) throw new EmbeddingError('Local embedding model returned an invalid vector');
+  return vector;
+};
+
+const generateEmbedding = async (text) => {
+  const key = text.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1000);
+  if (embeddingCache.has(key)) {
+    const cached = embeddingCache.get(key);
+    rememberEmbedding(key, cached); // refresh LRU position
+    return cached;
+  }
+
+  const vector = EMBEDDING_PROVIDER === 'local' ? await embedWithLocalModel(text) : await embedWithHuggingFace(text);
 
   if (embeddingDim && vector.length !== embeddingDim) {
     throw new EmbeddingError(`Embedding has ${vector.length} dimensions, expected ${embeddingDim}`);
@@ -384,6 +405,7 @@ const getRecommendationsForBuyer = async (buyerId) => {
 };
 
 module.exports = {
+  EMBEDDING_PROVIDER,
   EmbeddingError,
   generateEmbedding,
   invalidateProductIndex,

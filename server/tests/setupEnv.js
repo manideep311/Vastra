@@ -6,7 +6,10 @@ process.env.JWT_SECRET = 'test-only-jwt-secret';
 process.env.HF_TOKEN = 'test-token';
 process.env.HF_CHAT_MODEL = 'test/chat-model';
 process.env.HF_EMBEDDING_MODEL = 'test/embedding-model';
-for (const key of ['HF_EMBEDDING_DIM', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL', 'CLIENT_ORIGIN']) {
+// Suites exercise the hosted-API code path through mocked fetch; the local
+// model provider has its own suite with Transformers.js mocked.
+process.env.EMBEDDING_PROVIDER = 'huggingface';
+for (const key of ['HF_EMBEDDING_DIM', 'EMBEDDING_DIM', 'LLM_BASE_URL', 'LLM_API_KEY', 'LLM_MODEL', 'CLIENT_ORIGIN']) {
   delete process.env[key];
 }
 

@@ -14,6 +14,9 @@ coverage/
 server/uploads/*
 !server/uploads/.gitkeep
 
+# Local embedding model files (downloaded at build time)
+server/.models/
+
 # Logs
 *.log
 npm-debug.log*
