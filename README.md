@@ -176,18 +176,21 @@ GitHub Actions runs these tests, plus client lint and build, on every push and p
 - average and p95 retrieval latency;
 - hit@5: how often an expected product appears in the top 5.
 
-Results from 17 October 2026, measured with the local model against the live catalog from a development machine:
+Results from 17 October 2026, measured with the local model against the live catalog (40 questions in [`server/eval/questions.json`](server/eval/questions.json)):
 
 | Metric | Result |
 | --- | --- |
 | Products with embeddings | 47 / 47 |
-| Retrieval latency | 97 ms average, 374 ms p95 (n=5) |
-| hit@5 | 5 / 5 |
-| Process memory | 191 MB |
+| hit@1 (right product ranked first) | 73% (29 / 40) |
+| hit@5 (right product in the top 5) | 95% (38 / 40) |
+| MRR@5 | 0.825 |
+| Retrieval latency | 35 ms median, 61 ms average, 75 ms p95 (n=40) |
+| Process memory | 197 MB |
 
-These come from a five-question starter set, so treat them as a smoke test, not a benchmark.
-- **Latency:** with five questions, the p95 is simply the first question, which also loads the model and the vector index. Later questions took about 28 ms.
-- **hit@5:** a perfect score on five hand-picked questions says little. The set needs to grow before it can show real quality.
+How to read these:
+- **Small catalog.** With 47 products, a top-5 list covers about a tenth of the catalog, so hit@5 is the easier metric. hit@1 and MRR say more about ranking quality.
+- **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Questions avoid copying product names to keep the test honest.
+- **Latency.** The average includes the first question, which also loads the model and builds the vector index.
 
 ## Known limitations
 
