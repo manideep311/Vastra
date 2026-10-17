@@ -47,7 +47,7 @@ const createProduct = (supplier, overrides = {}) =>
 
 const SHIPPING = { address: '12 Mill Road, Tiruppur, Tamil Nadu', contact: '9876543210' };
 
-// Routes outbound fetch calls (Hugging Face) to a test handler.
+// Routes outbound fetch calls (embedding and chat APIs) to a test handler.
 const mockFetch = (handler) => {
   globalThis.__fetchHandler = handler;
 };
