@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/manideep311/Vastra/actions/workflows/ci.yml/badge.svg)](https://github.com/manideep311/Vastra/actions/workflows/ci.yml)
 
-Vastra is a B2B textile marketplace. Buyers (boutiques, garment makers, retailers) can source fabric straight from Indian mills and wholesalers. A retrieval-grounded AI assistant answers questions using the live product catalog. Built with React, Express and MongoDB, with Hugging Face models for embeddings and chat.
+Vastra is a B2B textile marketplace. Buyers (boutiques, garment makers, retailers) can source fabric straight from Indian mills and wholesalers. A retrieval-grounded AI assistant answers questions using the live product catalog. Built with React, Express and MongoDB. Embeddings come from a sentence-transformer model that runs inside the server, and replies from an LLM behind any OpenAI-compatible API, such as Groq's free tier. Both are free to run.
 
 **Live demo:** https://vastra-311.vercel.app
 
@@ -37,19 +37,20 @@ The API runs on Render's free tier, so the first request after a quiet period ca
 
 ```mermaid
 flowchart LR
-    Q["Buyer question"] --> E["Embedding<br/>(Hugging Face, all-MiniLM-L6-v2)"]
+    Q["Buyer question"] --> E["Embedding<br/>(all-MiniLM-L6-v2, runs in the server)"]
     E --> S["Cosine similarity over<br/>product vectors stored in MongoDB"]
     S --> T["Top 5 products"]
-    T --> L["LLM via Hugging Face router<br/>(products passed as delimited context)"]
+    T --> L["LLM via an OpenAI-compatible API<br/>(products passed as delimited context)"]
     L --> R["Grounded reply<br/>+ product cards"]
-    E -.->|embedding service unavailable| K["Keyword fallback<br/>(MongoDB text search)"]
+    E -.->|model unavailable| K["Keyword fallback<br/>(MongoDB text search)"]
     K --> T
+    L -.->|LLM down or rate limited| F["Keyword matches<br/>+ 'temporarily unavailable' note"]
 ```
 
-1. The buyer's latest message is turned into a vector with a sentence-embedding model.
-2. That vector is compared against every product's stored vector with cosine similarity, and the 5 closest products are kept. If the embedding call fails, MongoDB text search supplies the products instead. When the chat is opened from a product page, that product is the context.
+1. The buyer's latest message is turned into a 384-number vector by `all-MiniLM-L6-v2`. The model runs inside the API process with Transformers.js, so there's no API key and no usage limit.
+2. That vector is compared against every product's stored vector with cosine similarity, and the 5 closest products are kept. If the model can't run, MongoDB text search supplies the products instead. When the chat is opened from a product page, that product is the context.
 3. The products are sent to the chat model inside a `<catalog>` block in the user turn. The system prompt never changes, and it tells the model to answer only from that catalog and to treat it as data, not instructions.
-4. The reply comes back with the referenced products, which the widget shows as cards.
+4. The reply comes back with the referenced products, which the widget shows as cards. If the chat model is down or rate limited, the buyer still gets keyword matches with a short "temporarily unavailable" note instead of an error.
 
 The same vectors power AI search, similar products and recommendations. More detail is in [docs/architecture.md](docs/architecture.md).
 
@@ -60,13 +61,13 @@ The same vectors power AI search, similar products and recommendations. More det
 | Client | React 19, Vite 8, React Router 7, Tailwind CSS 4, Axios |
 | Server | Node.js 22, Express 5, Mongoose 9, JWT (jsonwebtoken + bcryptjs), helmet, express-rate-limit, multer, sharp |
 | Data | MongoDB Atlas (documents, product vectors, GridFS images) |
-| AI | Hugging Face Inference: `sentence-transformers/all-MiniLM-L6-v2` embeddings and a chat model through the OpenAI-compatible router |
+| AI | `all-MiniLM-L6-v2` embeddings run locally with Transformers.js (ONNX Runtime, 8-bit quantized); chat through any OpenAI-compatible API (Groq, Hugging Face router, Gemini) |
 | Testing and CI | Jest, Supertest, mongodb-memory-server, oxlint, GitHub Actions |
 | Hosting | Vercel (client), Render (API) |
 
 ## Running locally
 
-You need Node.js 22+, a MongoDB connection string (Atlas or local) and, for the AI features, a Hugging Face access token.
+You need Node.js 22+ and a MongoDB connection string (Atlas or local). For the assistant's replies you also need a free API key from an OpenAI-compatible provider, such as [Groq](https://console.groq.com).
 
 ```bash
 git clone https://github.com/manideep311/Vastra.git
@@ -76,6 +77,7 @@ cd Vastra
 cd server
 cp .env.example .env        # then fill in the values (see below)
 npm install
+npm run model:download      # one-time: fetches the 23 MB embedding model into server/.models
 npm run dev                 # http://localhost:5000
 
 # Client (in a second terminal)
@@ -85,7 +87,9 @@ npm install
 npm run dev                 # http://localhost:5173
 ```
 
-The app runs without `HF_TOKEN`. In that case the AI features answer "temporarily unavailable" and search falls back to keywords.
+Without an LLM key everything else still works. AI search, similar products and recommendations use the local model, and the assistant answers with keyword matches.
+
+If products in your database were embedded with a different model, re-embed them once with `npm run backfill:embeddings -- --all`.
 
 ## Environment variables
 
@@ -100,10 +104,12 @@ The app runs without `HF_TOKEN`. In that case the AI features answer "temporaril
 | `NODE_ENV` | no | Set to `production` when deployed |
 | `CLIENT_ORIGIN` | in production | Comma-separated CORS allow-list, e.g. `https://vastra-311.vercel.app`. Production refuses to start without it. |
 | `TRUST_PROXY` | behind a proxy | Set to `1` on Render or behind one reverse proxy, so rate limits see the real client IP |
-| `HF_TOKEN` | for AI | Hugging Face access token |
-| `HF_CHAT_MODEL` | for AI | Chat model ID served by the Hugging Face router |
-| `HF_EMBEDDING_MODEL` | for AI | Embedding model ID, e.g. `sentence-transformers/all-MiniLM-L6-v2` |
-| `HF_EMBEDDING_DIM` | no | Expected vector length (384 for all-MiniLM-L6-v2). If unset, it's learned from the first response. |
+| `LLM_BASE_URL` | for chat | OpenAI-compatible endpoint, e.g. `https://api.groq.com/openai/v1` |
+| `LLM_API_KEY` | for chat | API key for that provider |
+| `LLM_MODEL` | for chat | Model name the provider currently serves. Check the provider's model list, because models get renamed and retired. |
+| `EMBEDDING_PROVIDER` | no | `local` (default, free) or `huggingface` (hosted API; needs `HF_TOKEN` and `HF_EMBEDDING_MODEL`) |
+| `EMBEDDING_DIM` | no | Expected vector length (384 for all-MiniLM-L6-v2). If unset, it's learned from the first vector. |
+| `HF_TOKEN`, `HF_CHAT_MODEL`, `HF_EMBEDDING_MODEL` | no | Only for the Hugging Face providers. They also act as fallbacks when `LLM_API_KEY` and `LLM_MODEL` are empty. |
 | `SEED_DEMO_PASSWORD` | for seeding | Password for the demo supplier accounts created by the seed scripts. At least 8 characters. |
 
 ### Client (`client/.env.local`)
@@ -111,6 +117,14 @@ The app runs without `HF_TOKEN`. In that case the AI features answer "temporaril
 | Variable | Purpose |
 | --- | --- |
 | `VITE_API_URL` | API base URL, default `http://localhost:5000` |
+
+## Deploying the API
+
+On Render (or any Node host), use these settings:
+
+- **Build command:** `npm ci && npm run model:download`. The model then ships with the build instead of downloading when a sleeping server wakes up.
+- **Start command:** `npm start`
+- **Environment:** set `NODE_ENV=production`, `CLIENT_ORIGIN`, `TRUST_PROXY=1` and the `LLM_*` variables, plus the database and JWT settings.
 
 ## Seed and maintenance scripts
 
@@ -120,7 +134,8 @@ Run these from `server/`:
 | --- | --- |
 | `npm run seed:demo` | **Wipes** products, supplier accounts, carts, orders, quotes, reviews, wishlists and notifications, then seeds demo suppliers and products. Buyer accounts are kept. |
 | `npm run seed:supplier` | Adds a fixed set of products to one supplier account without deleting anything. |
-| `npm run backfill:embeddings` | Creates vectors for products saved while the embedding service was down (`-- --dry-run` to preview). |
+| `npm run model:download` | Downloads the local embedding model into `server/.models`. Run it once locally and in the deploy build step. |
+| `npm run backfill:embeddings` | Creates vectors for products that have none. Add `-- --all` to re-embed every product after changing the model, or `-- --dry-run` to preview. |
 | `npm run migrate:images` | Moves legacy disk uploads into MongoDB GridFS. |
 | `npm run eval:assistant` | Measures retrieval quality (see below). |
 
@@ -130,13 +145,14 @@ Run these from `server/`:
 cd server && npm test
 ```
 
-The API tests use Jest and Supertest against an in-memory MongoDB, with Hugging Face mocked. They cover:
+The API tests use Jest and Supertest against an in-memory MongoDB, with the model providers mocked. They cover:
 
 - role isolation between buyer and supplier tokens;
 - ownership checks on products and orders;
 - cart MOQ and stock rules;
 - server-side checkout pricing, including the concurrent-checkout race;
-- AI fallbacks: keyword context when embeddings fail, 503 when the chat model is down, and products still saving without vectors.
+- AI fallbacks: keyword context when embeddings fail, keyword matches when the chat model is down or rate limited, and products still saving without vectors;
+- the local embedding provider (pooling, normalisation, retry after a failed load).
 
 GitHub Actions runs these tests, plus client lint and build, on every push and pull request.
 
@@ -148,20 +164,26 @@ GitHub Actions runs these tests, plus client lint and build, on every push and p
 - average and p95 retrieval latency;
 - hit@5: how often an expected product appears in the top 5.
 
-The current file is a five-question starter set, so the numbers are indicative only.
+Results from 17 October 2026, measured with the local model against the live catalog from a development machine:
 
 | Metric | Result |
 | --- | --- |
-| Products with embeddings | [TODO: owner] |
-| Retrieval latency (avg / p95) | [TODO: owner] |
-| hit@5 | [TODO: owner] |
+| Products with embeddings | 47 / 47 |
+| Retrieval latency | 97 ms average, 374 ms p95 (n=5) |
+| hit@5 | 5 / 5 |
+| Process memory | 191 MB |
+
+These come from a five-question starter set, so treat them as a smoke test, not a benchmark.
+- **Latency:** with five questions, the p95 is simply the first question, which also loads the model and the vector index. Later questions took about 28 ms.
+- **hit@5:** a perfect score on five hand-picked questions says little. The set needs to grow before it can show real quality.
 
 ## Known limitations
 
 - **Linear-scan retrieval.** Every product vector is held in memory and compared on each query. That is fine for a catalog of this size, but a larger catalog would need a vector index (for example, MongoDB Atlas Vector Search).
 - **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand.
 - **Only the latest message drives retrieval.** Earlier turns are sent to the chat model (up to 10), but they don't influence which products are retrieved, so follow-ups like "a cheaper one" can pull in unrelated products.
-- **Hosted inference dependency.** Embeddings and chat need Hugging Face credits. When the provider is unavailable, AI search falls back to keywords, the assistant reports that it's unavailable, and new products are saved without vectors until `backfill:embeddings` runs.
+- **Free-tier chat limits.** The chat model runs on a provider's free tier, so heavy use can hit its rate limits. When that happens the assistant falls back to keyword matches until the limit resets.
+- **Model in server memory.** The embedding model adds roughly 60 MB to the API process. In local measurements the server peaked around 210 MB while serving AI searches, within Render's 512 MB free tier but not negligible.
 - **Single-instance design.** The vector index, embedding cache and rate-limit counters live in process memory.
 - **Silent guest-cart merge.** Guest-cart items that fail a stock or MOQ check at sign-in are skipped without a message.
 - **No payments.** Orders are placed without payment; suppliers handle invoicing outside the app.

@@ -1,4 +1,5 @@
-const hfClient = require('./ai.client');
+const { llmClient, LLM_MODEL } = require('./ai.client');
+const { embedLocally } = require('./localEmbedder');
 const Product = require('../../models/Product');
 const BuyerProfile = require('../../models/BuyerProfile');
 const { cosineSimilarity } = require('../../utils/similarity');
@@ -94,8 +95,13 @@ class EmbeddingError extends Error {
 }
 
 // Every vector must have the same length or similarity scores are meaningless.
-// HF_EMBEDDING_DIM pins it; otherwise the first valid response sets it.
-let embeddingDim = Number(process.env.HF_EMBEDDING_DIM) || null;
+// EMBEDDING_DIM pins it; otherwise the first valid vector sets it.
+let embeddingDim = Number(process.env.EMBEDDING_DIM || process.env.HF_EMBEDDING_DIM) || null;
+
+// 'local' (default) runs the model in this process; 'huggingface' calls the
+// hosted feature-extraction API. Stored vectors must all come from one
+// provider — after switching, re-embed with `npm run backfill:embeddings -- --all`.
+const EMBEDDING_PROVIDER = process.env.EMBEDDING_PROVIDER === 'huggingface' ? 'huggingface' : 'local';
 
 const isNumberArray = (value) => Array.isArray(value) && value.length > 0 && value.every((v) => typeof v === 'number' && Number.isFinite(v));
 
@@ -113,14 +119,7 @@ const toSentenceVector = (data) => {
   throw new EmbeddingError('Embedding response was not a numeric vector');
 };
 
-const generateEmbedding = async (text) => {
-  const key = text.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1000);
-  if (embeddingCache.has(key)) {
-    const cached = embeddingCache.get(key);
-    rememberEmbedding(key, cached); // refresh LRU position
-    return cached;
-  }
-
+const embedWithHuggingFace = async (text) => {
   const response = await fetch(
     `https://router.huggingface.co/hf-inference/models/${process.env.HF_EMBEDDING_MODEL}/pipeline/feature-extraction`,
     {
@@ -141,7 +140,29 @@ const generateEmbedding = async (text) => {
   const data = await response.json().catch(() => {
     throw new EmbeddingError('Embedding response was not valid JSON');
   });
-  const vector = toSentenceVector(data);
+  return toSentenceVector(data);
+};
+
+const embedWithLocalModel = async (text) => {
+  let vector;
+  try {
+    vector = await embedLocally(text.trim().slice(0, 2000));
+  } catch (error) {
+    throw new EmbeddingError(`Local embedding model failed: ${error.message}`);
+  }
+  if (!isNumberArray(vector)) throw new EmbeddingError('Local embedding model returned an invalid vector');
+  return vector;
+};
+
+const generateEmbedding = async (text) => {
+  const key = text.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 1000);
+  if (embeddingCache.has(key)) {
+    const cached = embeddingCache.get(key);
+    rememberEmbedding(key, cached); // refresh LRU position
+    return cached;
+  }
+
+  const vector = EMBEDDING_PROVIDER === 'local' ? await embedWithLocalModel(text) : await embedWithHuggingFace(text);
 
   if (embeddingDim && vector.length !== embeddingDim) {
     throw new EmbeddingError(`Embedding has ${vector.length} dimensions, expected ${embeddingDim}`);
@@ -154,7 +175,7 @@ const generateEmbedding = async (text) => {
 
 const complete = async (messages) => {
   try {
-    const response = await hfClient.chat.completions.create({ model: process.env.HF_CHAT_MODEL, messages });
+    const response = await llmClient.chat.completions.create({ model: LLM_MODEL, messages });
     const content = response.choices?.[0]?.message?.content;
     if (!content) throw new Error('Empty completion');
     return content.trim();
@@ -231,7 +252,7 @@ If nothing relevant is in the catalog, say so honestly and offer to help the buy
 When a product has a minimum order quantity (MOQ), mention it so the buyer isn't surprised at checkout. If a product is out of stock, say so and suggest the closest in-stock alternative from the list if one fits.
 If the buyer's request is vague (e.g. just "fabric" or "something nice"), ask one short clarifying question — end use, budget, or preferred fiber — instead of guessing.
 Keep responses concise and practical, like a knowledgeable sales assistant, and end with a brief, relevant follow-up question or suggestion when it naturally helps the buyer move forward (e.g. comparing two options, or checking bulk pricing).
-Do not use markdown tables.`;
+Replies appear in a narrow chat window: use short paragraphs or bullet lists, never tables.`;
 
 // Strips anything that looks like our delimiter tags so product text can't
 // close the <catalog> block early and smuggle in text outside it.
@@ -251,6 +272,7 @@ const chatWithAssistant = async (rawMessage, rawHistory = [], productId = null) 
     const product = await Product.findById(productId).select(RESULT_FIELDS).lean();
     if (product) contextProducts = [product];
   }
+  const fromProductPage = contextProducts.length > 0;
   if (contextProducts.length === 0) {
     try {
       contextProducts = await semanticSearch(message, 5);
@@ -260,16 +282,29 @@ const chatWithAssistant = async (rawMessage, rawHistory = [], productId = null) 
     }
   }
 
-  const reply = await complete([
-    { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
-    ...history,
-    { role: 'user', content: withCatalogContext(contextProducts, message) },
-  ]);
+  const toCards = (products) => products.map(({ description, similarityScore, score, ...rest }) => rest);
 
-  return {
-    reply,
-    referencedProducts: contextProducts.map(({ description, similarityScore, ...rest }) => rest),
-  };
+  try {
+    const reply = await complete([
+      { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
+      ...history,
+      { role: 'user', content: withCatalogContext(contextProducts, message) },
+    ]);
+    return { reply, referencedProducts: toCards(contextProducts) };
+  } catch (error) {
+    if (error.statusCode !== 503) throw error;
+    // The chat model is down or rate limited: still answer, with plain
+    // keyword matches (or the product the buyer is looking at).
+    const fallbackProducts = fromProductPage ? contextProducts : await keywordSearch(message, 5);
+    return {
+      reply:
+        fallbackProducts.length > 0
+          ? 'The assistant is temporarily unavailable, so here are catalog matches for your message instead.'
+          : 'The assistant is temporarily unavailable. Please try again in a moment, or browse the catalog.',
+      referencedProducts: toCards(fallbackProducts),
+      assistantUnavailable: true,
+    };
+  }
 };
 
 const getSimilarProducts = async (productId, limit = 5) => {
@@ -370,6 +405,7 @@ const getRecommendationsForBuyer = async (buyerId) => {
 };
 
 module.exports = {
+  EMBEDDING_PROVIDER,
   EmbeddingError,
   generateEmbedding,
   invalidateProductIndex,

@@ -9,8 +9,9 @@ Browser (React SPA on Vercel)
    │  HTTPS + JWT
    ▼
 Express API (Render) ──► MongoDB Atlas (data, product vectors, images in GridFS)
+   │   └─ embedding model (all-MiniLM-L6-v2) runs in-process
    │
-   └──► Hugging Face Inference (embeddings + chat model)
+   └──► OpenAI-compatible chat API (e.g. Groq free tier)
 ```
 
 The client is a static Vite build. The API is a single Express process; it keeps a few caches in memory (the product vector index, an LRU of query embeddings, rate-limit counters), so it is designed to run as one instance.
@@ -76,13 +77,20 @@ Guests can browse the home page, catalog, product pages, storefronts and cart. A
 
 ## AI features
 
-All model calls go through Hugging Face: feature extraction for embeddings, and the OpenAI-compatible router for chat.
+Both model types are free to run.
+- **Embeddings** come from `Xenova/all-MiniLM-L6-v2`, the 8-bit quantized ONNX build of `sentence-transformers/all-MiniLM-L6-v2`. It runs inside the API process with Transformers.js, using mean pooling and L2 normalisation, and returns 384 dimensions.
+  - `npm run model:download` stores the model in `server/.models` (about 23 MB) during the build, so a server waking from sleep doesn't download it.
+  - `server.js` loads it right after startup.
+  - `EMBEDDING_PROVIDER=huggingface` switches to the hosted Hugging Face API instead.
+- **Chat** goes through the OpenAI SDK to any compatible endpoint (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`), such as Groq's free tier. Calls time out after 25 seconds and aren't retried, so a rate-limited call fails fast.
 
-- **Embeddings.** Each product's name, category, description and tags are embedded when it is created, and again when that text changes or when the product has no vector yet. Responses are validated (numeric, consistent dimension) and a bad shape raises an `EmbeddingError`. If the provider is down, the product is saved without a vector; `npm run backfill:embeddings` fills the gaps later.
+- **Embedding lifecycle.** Each product's name, category, description and tags are embedded when it is created, and again when that text changes or when the product has no vector yet. Vectors are validated (numeric, consistent dimension) and a bad one raises an `EmbeddingError`. If the model fails, the product is saved without a vector and `npm run backfill:embeddings` fills the gaps later. `-- --all` re-embeds everything, so all stored vectors come from the same model as the queries.
 - **Vector index.** Product vectors are loaded into memory, refreshed every 10 minutes or whenever a product's text changes, and ranked with cosine similarity in a linear scan.
 - **Assistant.** The latest buyer message is embedded and the top 5 products are retrieved. If embeddings fail, it falls back to MongoDB text search. When the chat is opened from a product page, that product is the context instead. The system prompt is static; the product list goes into the user turn inside `<catalog>` tags, with delimiter-like text stripped, so supplier-written descriptions can't act as instructions. Up to 10 earlier turns are forwarded as plain user and assistant messages.
 - **Other uses.** Similar products (stored vectors only, no model call), AI search on `/products`, recommendations from the buyer's onboarding profile, category and tag suggestions for suppliers, and price and lead-time suggestions for quote responses.
-- **Failure handling.** When the provider fails, endpoints answer 503 with a friendly message and the UI degrades: the catalog falls back to keyword results, and the recommendation and similar-product sections hide.
+- **Failure handling.**
+  - If the chat model fails or is rate limited, `/ai/chat` still answers 200 with keyword matches (or the product being viewed) and a "temporarily unavailable" note.
+  - Other AI endpoints answer 503 with a friendly message, and the UI degrades: the catalog falls back to keyword results, and the recommendation and similar-product sections hide.
 
 ## Security measures
 
@@ -103,6 +111,7 @@ All model calls go through Hugging Face: feature extraction for embeddings, and 
 | `npm run seed:demo` | Wipes products, supplier accounts and everything that references them, then seeds demo suppliers and products. Needs `SEED_DEMO_PASSWORD`. |
 | `npm run seed:supplier` | Adds a fixed set of products to one supplier account without deleting anything. Needs `SEED_DEMO_PASSWORD` if it has to create the account. |
 | `npm run migrate:images` | Moves legacy `/uploads` images into GridFS. |
-| `npm run backfill:embeddings` | Embeds products that have no vector (`-- --dry-run` lists them). |
+| `npm run model:download` | Downloads the local embedding model into `server/.models` (deploy build step). |
+| `npm run backfill:embeddings` | Embeds products that have no vector. `-- --all` re-embeds everything; `-- --dry-run` lists them. |
 | `npm run eval:assistant` | Retrieval evaluation against `server/eval/questions.json`. |
 | `node src/scripts/removeMoq.js` | One-off: clears the MOQ on a fixed list of products. |

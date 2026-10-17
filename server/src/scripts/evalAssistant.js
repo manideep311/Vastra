@@ -4,8 +4,9 @@
  * often an expected product appears in the top 5 results (hit@5).
  *
  * Retrieval here is exactly what the assistant uses: embed the question with
- * Hugging Face, then rank stored product vectors by cosine similarity.
- * It needs MONGO_URI, HF_TOKEN and HF_EMBEDDING_MODEL in server/.env.
+ * the configured embedding model, then rank stored product vectors by cosine
+ * similarity. It needs MONGO_URI in server/.env (plus HF_TOKEN and
+ * HF_EMBEDDING_MODEL when EMBEDDING_PROVIDER=huggingface).
  *
  * Run from the server/ directory:
  *   npm run eval:assistant
@@ -18,7 +19,7 @@ const path = require('path');
 const mongoose = require('mongoose');
 const connectDB = require('../config/db');
 const Product = require('../models/Product');
-const { semanticSearch } = require('../modules/ai/ai.service');
+const { semanticSearch, EMBEDDING_PROVIDER } = require('../modules/ai/ai.service');
 
 const TOP_K = 5;
 
@@ -78,6 +79,7 @@ async function run() {
 
   const answered = questions.length - failures;
   console.log('Summary');
+  console.log(`  Embedding provider: ${EMBEDDING_PROVIDER}`);
   console.log(`  Products with embeddings: ${embeddedProducts}/${totalProducts}`);
   if (answered > 0) {
     const average = latencies.reduce((sum, ms) => sum + ms, 0) / latencies.length;
@@ -85,6 +87,7 @@ async function run() {
     console.log(`  hit@${TOP_K}: ${hits}/${answered} (${((hits / answered) * 100).toFixed(0)}%)`);
   }
   if (failures > 0) console.log(`  Failed questions: ${failures} (not counted in hit@${TOP_K})`);
+  console.log(`  Process memory (RSS): ${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`);
 
   await mongoose.disconnect();
   process.exitCode = failures > 0 ? 1 : 0;
