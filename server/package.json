@@ -6,11 +6,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
+    "test": "jest --runInBand",
     "seed:demo": "node src/scripts/seedDemoProducts.js",
     "seed:supplier": "node src/scripts/seedSupplierProducts.js",
     "migrate:images": "node src/scripts/migrateUploadsToGridFS.js",
     "backfill:embeddings": "node src/scripts/backfillEmbeddings.js",
-    "test": "jest --runInBand"
+    "eval:assistant": "node src/scripts/evalAssistant.js"
   },
   "keywords": [],
   "author": "Manideep Chittimodu",

@@ -1,0 +1,30 @@
+{
+  "description": "Starter evaluation set for assistant retrieval (5 questions). Expected product IDs were read from the live catalog API on 2026-10-17. Reseeding the database creates new IDs, so update them after running a seed script. Extend this set before drawing conclusions from the numbers.",
+  "questions": [
+    {
+      "question": "Lightweight breathable fabric for summer shirts",
+      "expectedProductIds": ["6aba33aa9781139734e4dd25", "6a720ccbac383c9c0c6960a4", "6a73f4f112e5dc5f8ed8fdae", "6a7236b294a4f6767702b933"],
+      "expectedNames": ["Pure Linen Slub 44s", "Pure European Flax Linen", "Linen Blend Fabric", "Natural Linen-Cotton Blend"]
+    },
+    {
+      "question": "Heavy raw selvedge denim for premium jeans",
+      "expectedProductIds": ["6a720ccaac383c9c0c6960a1", "6a73f4f212e5dc5f8ed8fdaf"],
+      "expectedNames": ["Raw Selvedge Denim 14oz", "Denim Fabric (12 Oz)"]
+    },
+    {
+      "question": "Handloom silk with zari work for bridal sarees",
+      "expectedProductIds": ["6a720cc9ac383c9c0c696099"],
+      "expectedNames": ["Kanchipuram Handloom Silk Brocade"]
+    },
+    {
+      "question": "Absorbent fabric for bath towels",
+      "expectedProductIds": ["6aba33ad9781139734e4dd2b", "6a73f4f312e5dc5f8ed8fdb3"],
+      "expectedNames": ["Organic Cotton Terry Towel Fabric", "Terry Towel Fabric"]
+    },
+    {
+      "question": "Water-resistant lining for rain jackets",
+      "expectedProductIds": ["6a720cccac383c9c0c6960a8"],
+      "expectedNames": ["Water-Resistant Polyester Taffeta"]
+    }
+  ]
+}
