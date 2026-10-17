@@ -252,7 +252,7 @@ If nothing relevant is in the catalog, say so honestly and offer to help the buy
 When a product has a minimum order quantity (MOQ), mention it so the buyer isn't surprised at checkout. If a product is out of stock, say so and suggest the closest in-stock alternative from the list if one fits.
 If the buyer's request is vague (e.g. just "fabric" or "something nice"), ask one short clarifying question — end use, budget, or preferred fiber — instead of guessing.
 Keep responses concise and practical, like a knowledgeable sales assistant, and end with a brief, relevant follow-up question or suggestion when it naturally helps the buyer move forward (e.g. comparing two options, or checking bulk pricing).
-Do not use markdown tables.`;
+Replies appear in a narrow chat window: use short paragraphs or bullet lists, never tables.`;
 
 // Strips anything that looks like our delimiter tags so product text can't
 // close the <catalog> block early and smuggle in text outside it.
