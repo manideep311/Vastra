@@ -15,6 +15,7 @@
  */
 
 require('dotenv').config();
+const { readSeedPassword } = require('./seedPassword');
 const bcrypt = require('bcryptjs');
 const connectDB = require('../config/db');
 const User = require('../models/User');
@@ -67,7 +68,7 @@ const IMAGES = {
   tweed: [img('Tweed fabric.jpg'), img('Harris tweed.jpg')],
 };
 
-const DEMO_PASSWORD = 'Demo@1234';
+const DEMO_PASSWORD = readSeedPassword();
 
 const SUPPLIERS = [
   {
@@ -662,7 +663,7 @@ async function seed() {
   }
 
   console.log(`\nDone — ${SUPPLIERS.length} suppliers, ${totalProducts} products seeded.`);
-  console.log(`All demo suppliers use password: ${DEMO_PASSWORD}`);
+  console.log('All demo suppliers use the password set in SEED_DEMO_PASSWORD.');
   process.exit(0);
 }
 
