@@ -5,11 +5,11 @@ import { useBuyerAuth } from '../context/BuyerAuthContext';
 import Dialog from './ui/Dialog';
 
 /**
- * Shown after the landing page's "Explore Textile" / "Sign in" buttons.
- * Buyers go straight into the public marketplace, no login required.
- * Suppliers must authenticate first, so they're sent to the supplier login.
+ * Shown by the landing page's "Sign in" buttons: picks which sign-in page to
+ * open. ("Explore Textile" skips this and goes straight to the marketplace.)
+ * A buyer who is already signed in can continue without signing in again.
  */
-function ExploreRoleModal({ open, onClose }) {
+function SignInRoleModal({ open, onClose }) {
   const navigate = useNavigate();
   const { user, isLoggedIn, logout } = useBuyerAuth();
 
@@ -18,18 +18,17 @@ function ExploreRoleModal({ open, onClose }) {
     navigate(path);
   };
 
-  // "Browse as a guest" means no buyer session in the navbar — if someone else
-  // was signed in on this browser, sign them out first.
-  const browseAsGuest = () => {
-    if (isLoggedIn) logout();
-    go('/home');
+  // "Not you?": end the current buyer session, then sign in as someone else.
+  const switchBuyer = () => {
+    logout();
+    go('/buyer/login');
   };
 
   const optionClass =
     'group flex w-full items-center gap-4 rounded-2xl border border-line bg-surface p-4 text-left transition-colors hover:border-ink/40 focus-visible:border-ink';
 
   return (
-    <Dialog open={open} onClose={onClose} title="How would you like to continue?" description="Browse as a buyer right away, or sign in to manage your supplier listings.">
+    <Dialog open={open} onClose={onClose} title="How would you like to continue?">
       <div className="space-y-3">
         {isLoggedIn ? (
           <button type="button" data-autofocus onClick={() => go('/home')} className={optionClass}>
@@ -43,13 +42,12 @@ function ExploreRoleModal({ open, onClose }) {
             <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
           </button>
         ) : (
-          <button type="button" data-autofocus onClick={browseAsGuest} className={optionClass}>
+          <button type="button" data-autofocus onClick={() => go('/buyer/login')} className={optionClass}>
             <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand">
               <ShoppingBagIcon className="h-5 w-5" />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block font-display font-bold text-ink">I’m a buyer</span>
-              <span className="block text-sm text-muted">Browse the marketplace — no account needed.</span>
             </span>
             <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
           </button>
@@ -61,7 +59,6 @@ function ExploreRoleModal({ open, onClose }) {
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-display font-bold text-ink">I’m a supplier</span>
-            <span className="block text-sm text-muted">Sign in to manage listings, quotes and orders.</span>
           </span>
           <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
         </button>
@@ -70,8 +67,8 @@ function ExploreRoleModal({ open, onClose }) {
       {isLoggedIn && (
         <p className="mt-5 text-center text-sm text-muted">
           Not you?{' '}
-          <button type="button" onClick={browseAsGuest} className="font-semibold text-ink hover:underline">
-            Sign out and browse as a guest
+          <button type="button" onClick={switchBuyer} className="font-semibold text-ink hover:underline">
+            Sign in with a different account
           </button>
         </p>
       )}
@@ -79,4 +76,4 @@ function ExploreRoleModal({ open, onClose }) {
   );
 }
 
-export default ExploreRoleModal;
+export default SignInRoleModal;
