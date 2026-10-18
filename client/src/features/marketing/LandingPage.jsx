@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRightIcon, Bars3Icon, XMarkIcon } from '@heroicons/react/20/solid';
-import ExploreRoleModal from '../../components/ExploreRoleModal';
+import SignInRoleModal from '../../components/SignInRoleModal';
 import Wordmark from '../../components/Wordmark';
 import Dialog from '../../components/ui/Dialog';
 import ProductImage from '../../components/ui/ProductImage';
@@ -80,7 +80,7 @@ const NAV_LINKS = [
 function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeFabric, setActiveFabric] = useState(null);
-  const [exploreOpen, setExploreOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -100,7 +100,7 @@ function LandingPage() {
               <Link to="/register?role=supplier" className="btn btn-sm text-white/90 hover:bg-white/10 hover:text-white">
                 Join as supplier
               </Link>
-              <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-sm border border-white/30 text-white hover:bg-white/10">
+              <button type="button" onClick={() => setSignInOpen(true)} className="btn btn-sm border border-white/30 text-white hover:bg-white/10">
                 Sign in
               </button>
             </div>
@@ -130,7 +130,7 @@ function LandingPage() {
                   type="button"
                   onClick={() => {
                     setMenuOpen(false);
-                    setExploreOpen(true);
+                    setSignInOpen(true);
                   }}
                   className="btn bg-white text-ink"
                 >
@@ -153,14 +153,13 @@ function LandingPage() {
               Source cotton, silk, linen and more directly from Indian mills and wholesalers — with clear minimum orders, bulk pricing and quotes built in.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => setExploreOpen(true)}
+              <Link
+                to="/home"
                 className="group btn btn-lg h-14 bg-accent px-8 text-base text-ink shadow-[0_14px_36px_-14px_rgba(201,138,27,0.8)] hover:bg-[#d99a2b]"
               >
                 Explore Textile
                 <ArrowRightIcon className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-1" />
-              </button>
+              </Link>
               <Link to="/register?role=supplier" className="btn btn-lg h-14 text-white/90 hover:bg-white/10 hover:text-white">
                 List your fabrics
               </Link>
@@ -250,9 +249,9 @@ function LandingPage() {
             <h2 id="how-title" className="mt-3 font-serif-display text-4xl font-semibold leading-tight text-ink">
               Sourcing, without the back-and-forth.
             </h2>
-            <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-primary mt-8">
+            <Link to="/home" className="btn btn-primary mt-8">
               Start browsing <ArrowRightIcon className="h-4 w-4" />
-            </button>
+            </Link>
           </div>
           <ol className="grid gap-10 sm:grid-cols-3 lg:col-span-8">
             {BUYER_STEPS.map((step, i) => (
@@ -302,9 +301,9 @@ function LandingPage() {
           rupees and the supplier’s own minimum order — so a sourcing decision takes minutes, not weeks of calls.
         </p>
         <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <button type="button" onClick={() => setExploreOpen(true)} className="btn btn-primary">
+          <Link to="/home" className="btn btn-primary">
             Explore Textile
-          </button>
+          </Link>
           <Link to="/register" className="btn btn-secondary">
             Create an account
           </Link>
@@ -318,7 +317,7 @@ function LandingPage() {
         </div>
       </footer>
 
-      <ExploreRoleModal open={exploreOpen} onClose={() => setExploreOpen(false)} />
+      <SignInRoleModal open={signInOpen} onClose={() => setSignInOpen(false)} />
 
       <Dialog open={Boolean(activeFabric)} onClose={() => setActiveFabric(null)} title={activeFabric?.name || 'Fabric'} size="md" bare>
         {activeFabric && (
