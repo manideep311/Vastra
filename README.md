@@ -163,9 +163,10 @@ The API tests use Jest and Supertest against an in-memory MongoDB, with the mode
 - role isolation between buyer and supplier tokens;
 - ownership checks on products and orders;
 - cart MOQ and stock rules;
-- server-side checkout pricing, including the concurrent-checkout race;
+- server-side checkout pricing, the concurrent-checkout race, and undoing orders if the cart can't be emptied;
 - AI fallbacks: keyword context when embeddings fail, keyword matches when the chat model is down or rate limited, and products still saving without vectors;
-- the local embedding provider (pooling, normalisation, retry after a failed load).
+- LLM output safety: the output cap is sent, `<think>` blocks are stripped, and unparseable quote suggestions never reach the supplier;
+- the local embedding provider's wiring: it's the default when nothing is configured, requests mean pooling and normalisation from Transformers.js (mocked, so the real model isn't loaded in tests), and retries after a failed load.
 
 GitHub Actions runs these tests, plus client lint and build, on every push and pull request.
 

@@ -1,7 +1,9 @@
 // The local provider runs Transformers.js in-process. The library is mocked
 // here so the suite stays fast and offline; the real model is exercised by
 // `npm run model:download` and `npm run eval:assistant`.
-process.env.EMBEDDING_PROVIDER = 'local';
+// The shared setup selects the hosted provider; unset it here so these tests
+// see the real default.
+delete process.env.EMBEDDING_PROVIDER;
 
 const mockExtractor = jest.fn();
 const mockPipeline = jest.fn();
@@ -17,11 +19,11 @@ beforeEach(() => {
 });
 
 describe('local embedding provider', () => {
-  test('is the default provider', () => {
+  test('is used when EMBEDDING_PROVIDER is unset', () => {
     expect(EMBEDDING_PROVIDER).toBe('local');
   });
 
-  test('mean-pools and normalises with the quantized model', async () => {
+  test('requests the quantized model with mean pooling and normalisation, and returns a plain array', async () => {
     mockExtractor.mockResolvedValue({ data: Float32Array.from([0.6, 0.8, 0]) });
 
     const vector = await generateEmbedding('organic cotton twill');
