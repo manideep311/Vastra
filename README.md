@@ -206,6 +206,7 @@ How to read these:
 - **Only the latest message drives retrieval.** Earlier turns are sent to the chat model (up to 10), but they don't influence which products are retrieved, so follow-ups like "a cheaper one" can pull in unrelated products.
 - **Free-tier chat limits.** The chat model runs on a provider's free tier, so heavy use can hit its rate limits. When that happens the assistant falls back to keyword matches until the limit resets.
 - **Model in server memory.** The embedding model adds roughly 60 MB to the API process. In local measurements the server peaked around 210 MB while serving AI searches, within Render's 512 MB free tier but not negligible.
+- **Heavy runtime install.** `onnxruntime-node` and `onnxruntime-web` take about 430 MB in `node_modules` (288 MB + 141 MB on a Windows install) to run a 23 MB model, so Render builds are slow.
 - **Single-instance design.** The vector index, embedding cache and rate-limit counters live in process memory.
 - **Silent guest-cart merge.** Guest-cart items that fail a stock or MOQ check at sign-in are skipped without a message.
 - **No payments.** Orders are placed without payment; suppliers handle invoicing outside the app.
