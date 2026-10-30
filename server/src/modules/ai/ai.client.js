@@ -26,9 +26,10 @@ if (!LLM_API_KEY || !LLM_MODEL) {
   console.warn('LLM_API_KEY or LLM_MODEL is not set — the assistant will answer with keyword results only.');
 }
 
-// A hung or rate-limited call should fail fast so the assistant can fall back
-// instead of keeping the buyer waiting. A missing key must not stop the
-// marketplace from booting; calls just fail and the service layer falls back.
+// No retries: a rate-limited call (429) fails immediately and the assistant
+// falls back to keyword matches. A hung call is abandoned after 25 seconds.
+// A missing key must not stop the marketplace from booting; calls just fail
+// and the service layer falls back.
 const llmClient = new OpenAI({
   apiKey: LLM_API_KEY || 'not-configured',
   baseURL: LLM_BASE_URL,

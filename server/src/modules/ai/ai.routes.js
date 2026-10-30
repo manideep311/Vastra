@@ -12,7 +12,8 @@ router.param('productId', validateObjectIdParam);
 // so it stays public and outside the AI quota limiter.
 router.get('/similar/:productId', similar);
 
-// Everything below proxies to a paid inference API. The buyer assistant and
+// Everything below runs the embedding model (CPU in this process) or calls the
+// chat LLM, whose free tier has its own rate limits. The buyer assistant and
 // search remain available to guests (browsing doesn't require an account),
 // but are rate limited per IP — or per account when signed in.
 router.post('/search', optionalAuthenticate, aiLimiter, search);
