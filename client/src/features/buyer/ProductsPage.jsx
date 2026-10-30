@@ -93,9 +93,10 @@ function ProductsPage() {
 
       if (aiResults) {
         try {
-          const { results } = await aiSearch(query, { signal: controller.signal });
+          const { results, mode } = await aiSearch(query, { signal: controller.signal });
           const matched = category ? results.filter((p) => p.category === category) : results;
-          return { products: matched, pagination: { page: 1, pages: 1, total: matched.length }, notice: '' };
+          const notice = mode === 'keyword' ? 'AI search is unavailable right now, so these are keyword matches.' : '';
+          return { products: matched, pagination: { page: 1, pages: 1, total: matched.length }, notice };
         } catch (err) {
           if (err.code === 'ERR_CANCELED') throw err;
           const data = await getProducts(params, { signal: controller.signal });

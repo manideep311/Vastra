@@ -58,10 +58,26 @@ describe('semantic search', () => {
     expect(res.body.results[0].embeddingVector).toBeUndefined();
   });
 
-  test('answers 503 with a friendly message when the embedding API is down', async () => {
+  test('falls back to keyword matches when the embedding model is unavailable', async () => {
     await seedCatalog();
-    const res = await request(app).post('/api/ai/search').set(buyer.auth).send({ query: 'denim' }).expect(503);
-    expect(res.body.error).toMatch(/temporarily unavailable/);
+    const res = await request(app).post('/api/ai/search').set(buyer.auth).send({ query: 'denim' }).expect(200);
+    expect(res.body.mode).toBe('keyword');
+    expect(res.body.results.map((p) => p.name)).toEqual(['Raw Denim']);
+    expect(res.body.results[0].score).toBeUndefined();
+  });
+
+  test('labels semantic results so the UI can tell them apart', async () => {
+    await seedCatalog();
+    mockFetch(async (url, options) => {
+      if (isEmbeddingCall(url)) return jsonResponse(fakeVector(JSON.parse(options.body).inputs));
+      throw new Error(`unexpected request ${url}`);
+    });
+    const res = await request(app).post('/api/ai/search').set(buyer.auth).send({ query: 'denim' }).expect(200);
+    expect(res.body.mode).toBe('semantic');
+  });
+
+  test('still rejects an empty query', async () => {
+    await request(app).post('/api/ai/search').set(buyer.auth).send({ query: '' }).expect(400);
   });
 });
 

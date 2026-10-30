@@ -240,6 +240,18 @@ const keywordSearch = async (text, limit) =>
     .lean()
     .catch(() => []);
 
+// AI search for the catalog page: semantic ranking when the embedding model
+// works, otherwise MongoDB text search, flagged so the UI can say so.
+const searchCatalog = async (queryText, limit = 10) => {
+  try {
+    return { mode: 'semantic', results: await semanticSearch(queryText, limit) };
+  } catch (error) {
+    if (error.statusCode !== 503) throw error; // invalid queries still answer 400
+    const results = await keywordSearch(queryText.trim(), limit);
+    return { mode: 'keyword', results: results.map(({ score, ...product }) => product) };
+  }
+};
+
 const MAX_HISTORY_TURNS = 10;
 
 // Only plain user/assistant turns from the client are forwarded — a crafted
@@ -435,6 +447,7 @@ module.exports = {
   generateEmbedding,
   invalidateProductIndex,
   semanticSearch,
+  searchCatalog,
   chatWithAssistant,
   getSimilarProducts,
   suggestCategory,
