@@ -175,8 +175,11 @@ GitHub Actions runs these tests, plus client lint and build, on every push and p
 `npm run eval:assistant` runs the questions in [`server/eval/questions.json`](server/eval/questions.json) through the same retrieval step the assistant uses. It reports:
 
 - how many products have embeddings;
-- average and p95 retrieval latency;
-- hit@5: how often an expected product appears in the top 5.
+- hit@1: how often an expected product is ranked first;
+- hit@5: how often an expected product appears in the top 5;
+- MRR@5: mean reciprocal rank of the first expected product within the top 5 (0 when none appears);
+- retrieval latency: median, average and p95;
+- process memory (RSS) at the end of the run.
 
 Results from 17 October 2026, measured with the local model against the live catalog (40 questions in [`server/eval/questions.json`](server/eval/questions.json)):
 
@@ -191,7 +194,9 @@ Results from 17 October 2026, measured with the local model against the live cat
 
 How to read these:
 - **Small catalog.** With 47 products, a top-5 list covers about a tenth of the catalog, so hit@5 is the easier metric. hit@1 and MRR say more about ranking quality.
-- **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Questions avoid copying product names to keep the test honest.
+- **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Most questions avoid copying product names; 7 of 40 share 2–3 words with the expected product's name.
+- **Lenient matching.** 28 of the 40 questions accept 2–4 correct products, and any of them counts as a hit, so hit@k is lenient.
+- **Not reproducible from the seeds.** The 47-product live catalog can't be rebuilt from the seed scripts (some products were added through the app), so these numbers come from that live data. The full output of this run is meant to go in [`server/eval/results-2026-10-17.txt`](server/eval/results-2026-10-17.txt).
 - **Latency.** The average includes the first question, which also loads the model and builds the vector index.
 
 ## Known limitations
