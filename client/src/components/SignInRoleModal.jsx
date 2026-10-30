@@ -2,16 +2,19 @@ import { useNavigate } from 'react-router-dom';
 import { ShoppingBagIcon, BuildingStorefrontIcon } from '@heroicons/react/24/outline';
 import { ArrowRightIcon } from '@heroicons/react/20/solid';
 import { useBuyerAuth } from '../context/BuyerAuthContext';
+import { useSupplierAuth } from '../context/SupplierAuthContext';
 import Dialog from './ui/Dialog';
 
 /**
  * Shown by the landing page's "Sign in" buttons: picks which sign-in page to
  * open. ("Explore Textile" skips this and goes straight to the marketplace.)
- * A buyer who is already signed in can continue without signing in again.
+ * Anyone already signed in (buyer or supplier) continues straight to their
+ * area instead of the sign-in page.
  */
 function SignInRoleModal({ open, onClose }) {
   const navigate = useNavigate();
   const { user, isLoggedIn, logout } = useBuyerAuth();
+  const supplierAuth = useSupplierAuth();
 
   const go = (path) => {
     onClose();
@@ -28,7 +31,7 @@ function SignInRoleModal({ open, onClose }) {
     'group flex w-full items-center gap-4 rounded-2xl border border-line bg-surface p-4 text-left transition-colors hover:border-ink/40 focus-visible:border-ink';
 
   return (
-    <Dialog open={open} onClose={onClose} title="How would you like to continue?">
+    <Dialog open={open} onClose={onClose} title="Sign in as a buyer or a supplier">
       <div className="space-y-3">
         {isLoggedIn ? (
           <button type="button" data-autofocus onClick={() => go('/home')} className={optionClass}>
@@ -53,12 +56,19 @@ function SignInRoleModal({ open, onClose }) {
           </button>
         )}
 
-        <button type="button" onClick={() => go('/supplier/login')} className={optionClass}>
+        <button type="button" onClick={() => go(supplierAuth.isLoggedIn ? '/supplier' : '/supplier/login')} className={optionClass}>
           <span className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-strong">
             <BuildingStorefrontIcon className="h-5 w-5" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block font-display font-bold text-ink">I’m a supplier</span>
+            {supplierAuth.isLoggedIn ? (
+              <>
+                <span className="block font-display font-bold text-ink">Continue as a supplier</span>
+                <span className="block truncate text-sm text-muted">Signed in as {supplierAuth.user?.email}</span>
+              </>
+            ) : (
+              <span className="block font-display font-bold text-ink">I’m a supplier</span>
+            )}
           </span>
           <ArrowRightIcon className="h-4 w-4 text-muted transition-transform group-hover:translate-x-0.5" />
         </button>
