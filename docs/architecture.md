@@ -57,7 +57,7 @@ Product images are resized with sharp into WebP variants (full, thumb, small) an
 
 All routes are under `/api`:
 
-`auth`, `buyer`, `products`, `cart`, `orders`, `supplier` (authenticated supplier actions), `suppliers` (public storefronts), `ai`, `quotes`, `wishlist`, `reviews`, `notifications`, `categories`, `images`.
+`auth`, `buyer`, `products`, `cart`, `orders`, `supplier` (authenticated supplier actions), `suppliers` (public storefronts), `ai`, `quotes`, `wishlist`, `reviews`, `notifications`, `images`.
 
 ## Buyer and supplier sessions
 

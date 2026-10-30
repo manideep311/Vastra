@@ -1,18 +1,9 @@
-const { listSupplierQuotes, getQuoteForUser, respondToQuote, declineQuote } = require('../quotes/quote.service');
+const { listSupplierQuotes, respondToQuote, declineQuote } = require('../quotes/quote.service');
 
 const listQuotes = async (req, res, next) => {
   try {
     const quotes = await listSupplierQuotes(req.user.userId);
     res.status(200).json({ quotes });
-  } catch (error) {
-    next(error);
-  }
-};
-
-const getQuote = async (req, res, next) => {
-  try {
-    const quote = await getQuoteForUser(req.user.userId, req.params.id);
-    res.status(200).json({ quote });
   } catch (error) {
     next(error);
   }
@@ -42,4 +33,4 @@ const decline = async (req, res, next) => {
   }
 };
 
-module.exports = { listQuotes, getQuote, respond, decline };
+module.exports = { listQuotes, respond, decline };

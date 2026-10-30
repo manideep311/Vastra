@@ -34,23 +34,26 @@ describe('ownership', () => {
     expect((await Product.findById(product._id).lean()).price).toBe(120);
   });
 
-  test('a buyer cannot read another buyer’s order', async () => {
+  test('a buyer only sees their own orders', async () => {
     const supplier = await createUser('supplier');
     const buyer = await createUser('buyer');
     const otherBuyer = await createUser('buyer');
     const order = await placeOrder(buyer, await createProduct(supplier));
 
-    await request(app).get(`/api/orders/${order._id}`).set(buyer.auth).expect(200);
-    await request(app).get(`/api/orders/${order._id}`).set(otherBuyer.auth).expect(404);
+    const own = await request(app).get('/api/orders').set(buyer.auth).expect(200);
+    expect(own.body.orders.map((o) => o._id)).toEqual([order._id]);
+    const other = await request(app).get('/api/orders').set(otherBuyer.auth).expect(200);
+    expect(other.body.orders).toEqual([]);
   });
 
-  test('a supplier cannot read or update another supplier’s order', async () => {
+  test('a supplier cannot see or update another supplier’s order', async () => {
     const supplier = await createUser('supplier');
     const otherSupplier = await createUser('supplier');
     const buyer = await createUser('buyer');
     const order = await placeOrder(buyer, await createProduct(supplier));
 
-    await request(app).get(`/api/supplier/orders/${order._id}`).set(otherSupplier.auth).expect(404);
+    const otherList = await request(app).get('/api/supplier/orders').set(otherSupplier.auth).expect(200);
+    expect(otherList.body.orders).toEqual([]);
     await request(app)
       .patch(`/api/supplier/orders/${order._id}/status`)
       .set(otherSupplier.auth)

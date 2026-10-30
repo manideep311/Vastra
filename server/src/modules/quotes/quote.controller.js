@@ -1,7 +1,6 @@
 const {
   requestQuote,
   listBuyerQuotes,
-  getQuoteForUser,
   acceptQuote,
   rejectQuote,
 } = require('./quote.service');
@@ -25,15 +24,6 @@ const getMine = async (req, res, next) => {
   }
 };
 
-const getOne = async (req, res, next) => {
-  try {
-    const quote = await getQuoteForUser(req.user.userId, req.params.id);
-    res.status(200).json({ quote });
-  } catch (error) {
-    next(error);
-  }
-};
-
 const accept = async (req, res, next) => {
   try {
     const quote = await acceptQuote(req.user.userId, req.params.id);
@@ -52,4 +42,4 @@ const reject = async (req, res, next) => {
   }
 };
 
-module.exports = { create, getMine, getOne, accept, reject };
+module.exports = { create, getMine, accept, reject };

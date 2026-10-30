@@ -164,27 +164,7 @@ const createOrdersFromCart = async (buyerId, cart, shippingInfo) => {
 
 const getBuyerOrders = async (buyerId) => Order.find({ buyerId }).sort({ createdAt: -1 }).limit(200).lean();
 
-const getBuyerOrderById = async (buyerId, orderId) => {
-  const order = await Order.findOne({ _id: orderId, buyerId });
-  if (!order) {
-    const error = new Error('Order not found');
-    error.statusCode = 404;
-    throw error;
-  }
-  return order;
-};
-
 const getSupplierOrders = async (supplierId) => Order.find({ supplierId }).sort({ createdAt: -1 }).limit(200).lean();
-
-const getSupplierOrderById = async (supplierId, orderId) => {
-  const order = await Order.findOne({ _id: orderId, supplierId });
-  if (!order) {
-    const error = new Error('Order not found');
-    error.statusCode = 404;
-    throw error;
-  }
-  return order;
-};
 
 const updateOrderStatus = async (supplierId, orderId, newStatus) => {
   const order = await Order.findOne({ _id: orderId, supplierId });
@@ -225,8 +205,6 @@ const updateOrderStatus = async (supplierId, orderId, newStatus) => {
 module.exports = {
   placeOrder,
   getBuyerOrders,
-  getBuyerOrderById,
   getSupplierOrders,
-  getSupplierOrderById,
   updateOrderStatus,
 };
