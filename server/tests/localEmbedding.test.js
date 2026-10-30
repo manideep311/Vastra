@@ -43,6 +43,12 @@ describe('local embedding provider', () => {
     await expect(generateEmbedding('second attempt')).resolves.toHaveLength(3);
   });
 
+  test('embeds one text per call and refuses a batch', async () => {
+    const { embedLocally } = require('../src/modules/ai/localEmbedder');
+    await expect(embedLocally(['linen', 'denim'])).rejects.toBeInstanceOf(TypeError);
+    expect(mockExtractor).not.toHaveBeenCalled();
+  });
+
   test('rejects a vector containing non-finite numbers', async () => {
     mockExtractor.mockResolvedValue({ data: Float32Array.from([NaN, 1, 0]) });
     await expect(generateEmbedding('broken output')).rejects.toBeInstanceOf(EmbeddingError);

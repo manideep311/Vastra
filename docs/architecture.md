@@ -81,6 +81,7 @@ Both model types are free to run.
 - **Embeddings** come from `Xenova/all-MiniLM-L6-v2`, the 8-bit quantized ONNX build of `sentence-transformers/all-MiniLM-L6-v2`. It runs inside the API process with Transformers.js, using mean pooling and L2 normalisation, and returns 384 dimensions.
   - `npm run model:download` stores the model in `server/.models` (about 23 MB) during the build, so a server waking from sleep doesn't download it.
   - `server.js` loads it right after startup.
+  - Every text is embedded on its own. With the quantized model, a text's vector shifts slightly depending on the other texts in a batch (cosine 0.993 between the same text alone and inside a batch), so products and queries are never batched.
   - `EMBEDDING_PROVIDER=huggingface` switches to the hosted Hugging Face API instead.
 - **Chat** goes to Groq's free tier through the OpenAI SDK (`LLM_API_KEY`, `LLM_MODEL`). `LLM_BASE_URL` can point it at any other OpenAI-compatible API. Calls time out after 25 seconds and aren't retried, so a rate-limited call fails fast.
 
