@@ -119,6 +119,7 @@ If products in your database were embedded with a different model, re-embed them
 | `LLM_API_KEY` | for chat | Groq API key |
 | `LLM_MODEL` | for chat | A model Groq currently serves, e.g. `openai/gpt-oss-20b`. Check Groq's model list, because models get renamed and retired. |
 | `LLM_BASE_URL` | no | Defaults to Groq (`https://api.groq.com/openai/v1`). Set it to use another OpenAI-compatible API. |
+| `LLM_REASONING_EFFORT`, `LLM_REASONING_FORMAT` | no | Sent to Groq as `low` and `hidden` by default, so reasoning models stay within the output cap and never show their thinking. Set to `off` to omit one, e.g. for a model that rejects it. |
 | `EMBEDDING_PROVIDER` | no | `local` (default, free) or `huggingface` (hosted API; needs `HF_TOKEN` and `HF_EMBEDDING_MODEL`) |
 | `EMBEDDING_DIM` | no | Expected vector length (384 for all-MiniLM-L6-v2). If unset, it's learned from the first vector. |
 | `HF_TOKEN`, `HF_EMBEDDING_MODEL` | no | Only with `EMBEDDING_PROVIDER=huggingface` |

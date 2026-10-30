@@ -148,3 +148,80 @@ describe('embedding validation', () => {
     await expect(generateEmbedding(`validation ${_label}`)).rejects.toBeInstanceOf(EmbeddingError);
   });
 });
+
+describe('LLM output safety', () => {
+  const quoteRequest = async (content, captured = {}) => {
+    const product = await createProduct(supplier, { name: 'Washed Linen', category: 'Linen', price: 400 });
+    mockFetch(async (url, options) => {
+      if (isChatCall(url)) {
+        Object.assign(captured, JSON.parse(options.body));
+        return chatCompletion(content);
+      }
+      throw new Error(`unexpected request ${url}`);
+    });
+    return request(app)
+      .post('/api/ai/suggest-quote')
+      .set(supplier.auth)
+      .send({ productId: product._id, requestedQuantity: 500, targetPrice: 350 })
+      .expect(200);
+  };
+
+  test('strips <think> blocks from assistant replies', async () => {
+    await seedCatalog();
+    mockFetch(async (url, options) => {
+      if (isEmbeddingCall(url)) return jsonResponse(fakeVector(JSON.parse(options.body).inputs));
+      if (isChatCall(url)) return chatCompletion('<think>The buyer wants linen; check stock first.</think>\nWashed Linen fits well.');
+      throw new Error(`unexpected request ${url}`);
+    });
+
+    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'breathable linen' }).expect(200);
+    expect(res.body.reply).toBe('Washed Linen fits well.');
+  });
+
+  test('drops an unterminated <think> block cut off by the token cap', async () => {
+    await seedCatalog();
+    mockFetch(async (url) => {
+      if (isEmbeddingCall(url)) return jsonResponse([1, 0, 0]);
+      if (isChatCall(url)) return chatCompletion('<think>Still reasoning when the cap hit');
+      throw new Error(`unexpected request ${url}`);
+    });
+
+    const res = await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'linen' }).expect(200);
+    expect(res.body.reply).not.toMatch(/reasoning when the cap/);
+    expect(res.body.assistantUnavailable).toBe(true);
+  });
+
+  test('a quote suggestion that is not valid JSON returns no raw model text', async () => {
+    const raw = 'Sure! I think about ₹350 per meter would be fair, delivered in two weeks.';
+    const res = await quoteRequest(raw);
+
+    expect(res.body).toMatchObject({ suggestedPrice: null, suggestedLeadTime: null, reasoning: null });
+    expect(res.body.message).toMatch(/Enter your price/);
+    expect(JSON.stringify(res.body)).not.toContain('I think about');
+  });
+
+  test('a valid quote suggestion is returned without the think block', async () => {
+    const res = await quoteRequest('<think>bulk discount</think>{"suggestedPrice": 360, "suggestedLeadTime": "12-15 days", "reasoning": "10% off for 500 m."}');
+    expect(res.body).toEqual({ suggestedPrice: 360, suggestedLeadTime: '12-15 days', reasoning: '10% off for 500 m.' });
+  });
+
+  test('passes the output caps and low reasoning effort to the model', async () => {
+    const quoteBody = {};
+    await quoteRequest('{"suggestedPrice": 360, "suggestedLeadTime": "2 weeks", "reasoning": "ok"}', quoteBody);
+    expect(quoteBody.max_completion_tokens).toBe(200);
+    expect(quoteBody.reasoning_effort).toBe('low');
+    expect(quoteBody.reasoning_format).toBe('hidden');
+
+    let chatBody;
+    mockFetch(async (url, options) => {
+      if (isEmbeddingCall(url)) return jsonResponse([1, 0, 0]);
+      if (isChatCall(url)) {
+        chatBody = JSON.parse(options.body);
+        return chatCompletion('Here you go.');
+      }
+      throw new Error(`unexpected request ${url}`);
+    });
+    await request(app).post('/api/ai/chat').set(buyer.auth).send({ message: 'linen' }).expect(200);
+    expect(chatBody.max_completion_tokens).toBe(400);
+  });
+});

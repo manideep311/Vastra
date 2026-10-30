@@ -1,4 +1,4 @@
-const { llmClient, LLM_MODEL } = require('./ai.client');
+const { llmClient, LLM_MODEL, LLM_REQUEST_OPTIONS } = require('./ai.client');
 const { embedLocally } = require('./localEmbedder');
 const Product = require('../../models/Product');
 const BuyerProfile = require('../../models/BuyerProfile');
@@ -173,12 +173,29 @@ const generateEmbedding = async (text) => {
   return vector;
 };
 
-const complete = async (messages) => {
+// Output caps. On reasoning models they also bound the hidden thinking.
+const CHAT_MAX_TOKENS = 400;
+const SHORT_MAX_TOKENS = 200; // JSON answers: quote and category suggestions
+
+// Some models put their chain of thought in <think>…</think>, sometimes
+// unterminated when the token cap cuts them off. It is never shown to users.
+const stripThinking = (text) =>
+  text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/i, '')
+    .trim();
+
+const complete = async (messages, { maxTokens }) => {
   try {
-    const response = await llmClient.chat.completions.create({ model: LLM_MODEL, messages });
-    const content = response.choices?.[0]?.message?.content;
+    const response = await llmClient.chat.completions.create({
+      model: LLM_MODEL,
+      messages,
+      max_completion_tokens: maxTokens,
+      ...LLM_REQUEST_OPTIONS,
+    });
+    const content = stripThinking(response.choices?.[0]?.message?.content || '');
     if (!content) throw new Error('Empty completion');
-    return content.trim();
+    return content;
   } catch (error) {
     console.error('AI completion failed:', error.message);
     throw aiUnavailable();
@@ -289,7 +306,7 @@ const chatWithAssistant = async (rawMessage, rawHistory = [], productId = null) 
       { role: 'system', content: ASSISTANT_SYSTEM_PROMPT },
       ...history,
       { role: 'user', content: withCatalogContext(contextProducts, message) },
-    ]);
+    ], { maxTokens: CHAT_MAX_TOKENS });
     return { reply, referencedProducts: toCards(contextProducts) };
   } catch (error) {
     if (error.statusCode !== 503) throw error;
@@ -332,7 +349,7 @@ const suggestCategory = async (rawName, rawDescription) => {
         'You categorize fabric products for a marketplace. Given a product name and description, respond with ONLY a JSON object in the form {"category": "...", "tags": ["...", "..."]} — no other text, no markdown formatting.',
     },
     { role: 'user', content: `Name: ${name}\nDescription: ${description}` },
-  ]);
+  ], { maxTokens: SHORT_MAX_TOKENS });
 
   const parsed = parseJsonObject(raw);
   const category = typeof parsed?.category === 'string' ? parsed.category.trim().slice(0, 60) : null;
@@ -346,6 +363,8 @@ const suggestCategory = async (rawName, rawDescription) => {
 // time given the product's base price/tiers, the buyer's requested quantity,
 // and their optional target price. Purely advisory: the supplier still submits
 // the final numbers themselves.
+const NO_QUOTE_SUGGESTION = "Couldn't work out a suggestion this time. Enter your price and lead time yourself.";
+
 const suggestQuote = async (product, { requestedQuantity, targetPrice }) => {
   const tiersText = (product.priceTiers || [])
     .map((t) => `${t.minQty}+ units: ₹${t.price}/${product.unit || 'unit'}`)
@@ -365,14 +384,20 @@ const suggestQuote = async (product, { requestedQuantity, targetPrice }) => {
       role: 'user',
       content: `Product: ${product.name} (${product.category})\nBase price: ₹${product.price}/${product.unit || 'unit'}\nMOQ: ${product.moq || 1}\nExisting price tiers: ${tiersText}\nStock available: ${product.stock}\n\nBuyer requested quantity: ${requestedQuantity}\nBuyer's target price: ${targetPrice ? `₹${targetPrice}/unit` : 'not specified'}`,
     },
-  ]);
+  ], { maxTokens: SHORT_MAX_TOKENS });
 
+  // Only parsed fields reach the supplier — never the raw model text.
   const parsed = parseJsonObject(raw);
   const price = Number(parsed?.suggestedPrice);
+  const suggestedPrice = Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : null;
+  const suggestedLeadTime = typeof parsed?.suggestedLeadTime === 'string' ? parsed.suggestedLeadTime.trim().slice(0, 40) || null : null;
+  if (suggestedPrice === null && suggestedLeadTime === null) {
+    return { suggestedPrice: null, suggestedLeadTime: null, reasoning: null, message: NO_QUOTE_SUGGESTION };
+  }
   return {
-    suggestedPrice: Number.isFinite(price) && price > 0 ? Math.round(price * 100) / 100 : null,
-    suggestedLeadTime: typeof parsed?.suggestedLeadTime === 'string' ? parsed.suggestedLeadTime.slice(0, 40) : null,
-    reasoning: typeof parsed?.reasoning === 'string' ? parsed.reasoning.slice(0, 300) : raw.slice(0, 300),
+    suggestedPrice,
+    suggestedLeadTime,
+    reasoning: typeof parsed?.reasoning === 'string' ? parsed.reasoning.trim().slice(0, 300) || null : null,
   };
 };
 
