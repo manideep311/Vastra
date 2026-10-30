@@ -61,26 +61,33 @@ const placeOrder = async (buyerId, rawShippingInfo) => {
   const shippingInfo = validateShippingInfo(rawShippingInfo);
   const cart = await claimCart(buyerId);
 
+  let createdOrders = [];
   try {
-    const createdOrders = await createOrdersFromCart(buyerId, cart, shippingInfo);
-    cart.items = [];
-    cart.checkoutLockedAt = null;
-    await cart.save();
-
-    for (const order of createdOrders) {
-      notify(order.supplierId, {
-        type: 'order_status',
-        title: 'New order received',
-        message: `You received a new order worth ₹${order.total.toFixed(2)}.`,
-        link: '/supplier/orders',
-      });
-    }
-    return createdOrders;
+    createdOrders = await createOrdersFromCart(buyerId, cart, shippingInfo);
+    await Cart.updateOne({ _id: cart._id }, { $set: { items: [], checkoutLockedAt: null } });
   } catch (error) {
+    // If the cart couldn't be emptied, its items are still there: undo the
+    // orders (and their stock reservations) so a retry can't duplicate them.
+    if (createdOrders.length > 0) await cancelOrders(createdOrders);
     // Release the claim so the buyer can fix the cart and try again.
     await Cart.updateOne({ _id: cart._id }, { $set: { checkoutLockedAt: null } });
     throw error;
   }
+
+  for (const order of createdOrders) {
+    notify(order.supplierId, {
+      type: 'order_status',
+      title: 'New order received',
+      message: `You received a new order worth ₹${order.total.toFixed(2)}.`,
+      link: '/supplier/orders',
+    });
+  }
+  return createdOrders;
+};
+
+const cancelOrders = async (orders) => {
+  await Order.deleteMany({ _id: { $in: orders.map((order) => order._id) } });
+  await releaseStock(orders.flatMap((order) => order.items.map(({ productId, quantity }) => ({ productId, quantity }))));
 };
 
 const createOrdersFromCart = async (buyerId, cart, shippingInfo) => {
