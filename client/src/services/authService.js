@@ -16,3 +16,9 @@ export const getSessionUser = async (role) => {
   const response = await apiClient.get('/auth/me', { authRole: role });
   return response.data;
 };
+
+// Tells the server the session is ending. Tokens are stateless, so the client
+// clears its own storage regardless of whether this request succeeds.
+export const logout = async (role) => {
+  await apiClient.post('/auth/logout', null, { authRole: role });
+};
