@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRightStartOnRectangleIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
 import { ClipboardDocumentListIcon, DocumentTextIcon, HeartIcon } from '@heroicons/react/24/outline';
 import { getBuyerProfile } from '../../services/buyerService';
+import SavedAddresses from './SavedAddresses';
 import { getMyOrders } from '../../services/orderService';
 import { useBuyerAuth } from '../../context/BuyerAuthContext';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -164,6 +165,8 @@ function DashboardPage() {
               )}
             </section>
           </div>
+
+          {profile && <SavedAddresses addresses={profile.addresses || []} onChange={setProfile} />}
         </>
       )}
     </div>
