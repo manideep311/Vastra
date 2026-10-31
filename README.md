@@ -202,7 +202,7 @@ How to read these:
 ## Known limitations
 
 - **Linear-scan retrieval.** Every product vector is held in memory and compared on each query. That is fine for a catalog of this size, but a larger catalog would need a vector index (for example, MongoDB Atlas Vector Search).
-- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand.
+- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand. The eval's off-catalogue check (8 questions about things Vastra doesn't sell, such as leather or sewing machines) shows this: on a copy of the live catalog, all 8 still returned 5 products each.
 - **Only the latest message drives retrieval.** Earlier turns are sent to the chat model (up to 10), but they don't influence which products are retrieved, so follow-ups like "a cheaper one" can pull in unrelated products.
 - **Free-tier chat limits.** The chat model runs on a provider's free tier, so heavy use can hit its rate limits. When that happens the assistant falls back to keyword matches until the limit resets.
 - **Model in server memory.** The embedding model adds roughly 60 MB to the API process. In local measurements the server peaked around 210 MB while serving AI searches, within Render's 512 MB free tier but not negligible.

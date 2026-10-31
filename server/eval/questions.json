@@ -307,5 +307,18 @@
         "Donegal-Style Fleck Tweed"
       ]
     }
-  ]
+  ],
+  "offCatalogueQuestions": {
+    "description": "Things Vastra does not sell. Not scored with the 40 questions above: the script reports how often retrieval still returns products, how many, and how similar the closest one is. Retrieval has no similarity threshold, so it is expected to return products for every one of these.",
+    "questions": [
+      "Genuine leather hides for handbags",
+      "Industrial sewing machines for a garment unit",
+      "Metal zippers and buttons in bulk",
+      "Reactive dyes and printing chemicals",
+      "Ready-made men's shirts for retail",
+      "Polyester sewing thread on cones",
+      "Steel pipes for plumbing",
+      "Fresh vegetables for a restaurant"
+    ]
+  }
 }

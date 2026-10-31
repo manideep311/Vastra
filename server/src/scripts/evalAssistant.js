@@ -3,6 +3,8 @@
  * how many products have embeddings, how long retrieval takes, and how often
  * an expected product appears first (hit@1) or in the top 5 (hit@5), plus
  * mean reciprocal rank. Expected products can be given by ID or by name.
+ * A separate, unscored section asks about things the catalog doesn't sell
+ * and reports how many products retrieval still returns.
  *
  * Retrieval here is exactly what the assistant uses: embed the question with
  * the configured embedding model, then rank stored product vectors by cosine
@@ -35,9 +37,38 @@ const percentile = (values, p) => {
   return sorted[Math.max(0, Math.ceil((p / 100) * sorted.length) - 1)];
 };
 
+// Questions about things the catalog doesn't sell. Reported separately and
+// never mixed into the scored metrics above: retrieval has no similarity
+// threshold, so this shows how much unrelated material it hands the LLM.
+async function runOffCatalogueCheck(offQuestions) {
+  console.log(`\nOff-catalogue check (${offQuestions.length} questions, not scored)\n`);
+  const returned = [];
+  const topScores = [];
+  for (const [i, question] of offQuestions.entries()) {
+    console.log(`${i + 1}. ${question}`);
+    try {
+      const results = await semanticSearch(question, TOP_K);
+      returned.push(results.length);
+      if (results.length) topScores.push(results[0].similarityScore);
+      results.forEach((r, position) => console.log(`     ${position + 1}. ${r.name} (${r.similarityScore.toFixed(3)})`));
+    } catch (error) {
+      console.log(`   FAILED  ${error.message}`);
+    }
+    console.log('');
+  }
+  const withProducts = returned.filter((n) => n > 0).length;
+  const average = (values) => values.reduce((sum, v) => sum + v, 0) / values.length;
+  console.log('Off-catalogue summary');
+  console.log(`  Questions answered with products: ${withProducts}/${returned.length}`);
+  if (returned.length) console.log(`  Products returned per question: average ${average(returned).toFixed(1)}, max ${Math.max(...returned)}`);
+  if (topScores.length) {
+    console.log(`  Similarity of the closest product: average ${average(topScores).toFixed(3)}, highest ${Math.max(...topScores).toFixed(3)}`);
+  }
+}
+
 async function run() {
   const file = path.resolve(argValue('--file') || path.join(__dirname, '../../eval/questions.json'));
-  const { questions } = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const { questions, offCatalogueQuestions } = JSON.parse(fs.readFileSync(file, 'utf8'));
   if (!Array.isArray(questions) || questions.length === 0) throw new Error(`No questions found in ${file}`);
 
   await connectDB();
@@ -116,6 +147,8 @@ async function run() {
     [...unmatchedNames].sort().forEach((name) => console.log(`    - ${name}`));
   }
   console.log(`  Process memory (RSS): ${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`);
+
+  if (offCatalogueQuestions?.questions?.length) await runOffCatalogueCheck(offCatalogueQuestions.questions);
 
   await mongoose.disconnect();
   process.exitCode = failures > 0 ? 1 : 0;
