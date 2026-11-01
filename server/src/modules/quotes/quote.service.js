@@ -59,18 +59,6 @@ const listSupplierQuotes = async (supplierId) => {
   return Quote.find({ supplierId }).populate(populateOpts).sort({ createdAt: -1 }).limit(200);
 };
 
-const getQuoteForUser = async (userId, quoteId) => {
-  const quote = await Quote.findOne({ _id: quoteId, $or: [{ buyerId: userId }, { supplierId: userId }] }).populate(
-    populateOpts
-  );
-  if (!quote) {
-    const error = new Error('Quote not found');
-    error.statusCode = 404;
-    throw error;
-  }
-  return quote;
-};
-
 const respondToQuote = async (supplierId, quoteId, input) => {
   const quotedPrice = requireNumber(input.quotedPrice, 'Quoted price', { min: 0.01, max: 10_000_000 });
   const quotedLeadTime = optionalString(input.quotedLeadTime, 'Lead time', { max: 40 }) || undefined;
@@ -202,7 +190,6 @@ module.exports = {
   requestQuote,
   listBuyerQuotes,
   listSupplierQuotes,
-  getQuoteForUser,
   respondToQuote,
   declineQuote,
   acceptQuote,

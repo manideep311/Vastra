@@ -35,7 +35,13 @@ const loadExtractor = ({ downloading = false } = {}) => {
 
 // Mean-pooled, L2-normalised sentence vector — the standard recipe for
 // sentence-transformers models such as all-MiniLM-L6-v2.
+//
+// Always one text per call. With the quantized model a text's vector depends
+// on what else is in the batch (measured: cosine 0.993 between the same text
+// embedded alone and inside a batch), so batching would make stored product
+// vectors drift from query vectors, which are embedded on their own.
 const embedLocally = async (text) => {
+  if (typeof text !== 'string') throw new TypeError('embedLocally takes a single text; batching changes the vectors');
   const extractor = await loadExtractor();
   const output = await extractor(text, { pooling: 'mean', normalize: true });
   return Array.from(output.data);

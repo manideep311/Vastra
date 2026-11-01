@@ -119,6 +119,7 @@ If products in your database were embedded with a different model, re-embed them
 | `LLM_API_KEY` | for chat | Groq API key |
 | `LLM_MODEL` | for chat | A model Groq currently serves, e.g. `openai/gpt-oss-20b`. Check Groq's model list, because models get renamed and retired. |
 | `LLM_BASE_URL` | no | Defaults to Groq (`https://api.groq.com/openai/v1`). Set it to use another OpenAI-compatible API. |
+| `LLM_REASONING_EFFORT`, `LLM_REASONING_FORMAT` | no | Sent to Groq as `low` and `hidden` by default, so reasoning models stay within the output cap and never show their thinking. Set to `off` to omit one, e.g. for a model that rejects it. |
 | `EMBEDDING_PROVIDER` | no | `local` (default, free) or `huggingface` (hosted API; needs `HF_TOKEN` and `HF_EMBEDDING_MODEL`) |
 | `EMBEDDING_DIM` | no | Expected vector length (384 for all-MiniLM-L6-v2). If unset, it's learned from the first vector. |
 | `HF_TOKEN`, `HF_EMBEDDING_MODEL` | no | Only with `EMBEDDING_PROVIDER=huggingface` |
@@ -162,9 +163,10 @@ The API tests use Jest and Supertest against an in-memory MongoDB, with the mode
 - role isolation between buyer and supplier tokens;
 - ownership checks on products and orders;
 - cart MOQ and stock rules;
-- server-side checkout pricing, including the concurrent-checkout race;
+- server-side checkout pricing, the concurrent-checkout race, and undoing orders if the cart can't be emptied;
 - AI fallbacks: keyword context when embeddings fail, keyword matches when the chat model is down or rate limited, and products still saving without vectors;
-- the local embedding provider (pooling, normalisation, retry after a failed load).
+- LLM output safety: the output cap is sent, `<think>` blocks are stripped, and unparseable quote suggestions never reach the supplier;
+- the local embedding provider's wiring: it's the default when nothing is configured, requests mean pooling and normalisation from Transformers.js (mocked, so the real model isn't loaded in tests), and retries after a failed load.
 
 GitHub Actions runs these tests, plus client lint and build, on every push and pull request.
 
@@ -173,8 +175,11 @@ GitHub Actions runs these tests, plus client lint and build, on every push and p
 `npm run eval:assistant` runs the questions in [`server/eval/questions.json`](server/eval/questions.json) through the same retrieval step the assistant uses. It reports:
 
 - how many products have embeddings;
-- average and p95 retrieval latency;
-- hit@5: how often an expected product appears in the top 5.
+- hit@1: how often an expected product is ranked first;
+- hit@5: how often an expected product appears in the top 5;
+- MRR@5: mean reciprocal rank of the first expected product within the top 5 (0 when none appears);
+- retrieval latency: median, average and p95;
+- process memory (RSS) at the end of the run.
 
 Results from 17 October 2026, measured with the local model against the live catalog (40 questions in [`server/eval/questions.json`](server/eval/questions.json)):
 
@@ -189,16 +194,19 @@ Results from 17 October 2026, measured with the local model against the live cat
 
 How to read these:
 - **Small catalog.** With 47 products, a top-5 list covers about a tenth of the catalog, so hit@5 is the easier metric. hit@1 and MRR say more about ranking quality.
-- **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Questions avoid copying product names to keep the test honest.
+- **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Most questions avoid copying product names; 7 of 40 share 2–3 words with the expected product's name.
+- **Lenient matching.** 28 of the 40 questions accept 2–4 correct products, and any of them counts as a hit, so hit@k is lenient.
+- **Not reproducible from the seeds.** The 47-product live catalog can't be rebuilt from the seed scripts (some products were added through the app), so these numbers come from that live data. The full output of this run is meant to go in [`server/eval/results-2026-10-17.txt`](server/eval/results-2026-10-17.txt).
 - **Latency.** The average includes the first question, which also loads the model and builds the vector index.
 
 ## Known limitations
 
 - **Linear-scan retrieval.** Every product vector is held in memory and compared on each query. That is fine for a catalog of this size, but a larger catalog would need a vector index (for example, MongoDB Atlas Vector Search).
-- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand.
+- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand. The eval's off-catalogue check (8 questions about things Vastra doesn't sell, such as leather or sewing machines) shows this: on a copy of the live catalog, all 8 still returned 5 products each.
 - **Only the latest message drives retrieval.** Earlier turns are sent to the chat model (up to 10), but they don't influence which products are retrieved, so follow-ups like "a cheaper one" can pull in unrelated products.
 - **Free-tier chat limits.** The chat model runs on a provider's free tier, so heavy use can hit its rate limits. When that happens the assistant falls back to keyword matches until the limit resets.
 - **Model in server memory.** The embedding model adds roughly 60 MB to the API process. In local measurements the server peaked around 210 MB while serving AI searches, within Render's 512 MB free tier but not negligible.
+- **Heavy runtime install.** `onnxruntime-node` and `onnxruntime-web` take about 430 MB in `node_modules` (288 MB + 141 MB on a Windows install) to run a 23 MB model, so Render builds are slow.
 - **Single-instance design.** The vector index, embedding cache and rate-limit counters live in process memory.
 - **Silent guest-cart merge.** Guest-cart items that fail a stock or MOQ check at sign-in are skipped without a message.
 - **No payments.** Orders are placed without payment; suppliers handle invoicing outside the app.

@@ -94,6 +94,7 @@ export function createRoleAuthContext(role, { onSignedIn } = {}) {
     }, []);
 
     const logout = useCallback(() => {
+      authService.logout(role).catch(() => {}); // best effort; signing out never waits on the network
       clearSession(role); // this role's keys only
       setUser(null);
     }, []);

@@ -1,5 +1,5 @@
 const {
-  semanticSearch,
+  searchCatalog,
   chatWithAssistant,
   getSimilarProducts,
   suggestCategory,
@@ -9,8 +9,8 @@ const {
 
 const search = async (req, res, next) => {
   try {
-    const results = await semanticSearch(req.body.query);
-    res.status(200).json({ results });
+    const { mode, results } = await searchCatalog(req.body.query);
+    res.status(200).json({ mode, results });
   } catch (error) {
     next(error);
   }

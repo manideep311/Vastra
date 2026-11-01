@@ -1,5 +1,5 @@
 {
-  "description": "Assistant retrieval evaluation set (40 buyer questions). Questions 1-5 list product IDs read from the live catalog on 2026-10-17 plus names; questions 6-40 list expected product names, matched case-insensitively at run time so they survive a reseed. Names come from the seed scripts and the live catalog snapshot; the script lists any name it cannot find. Questions are phrased as buyers would ask and avoid copying product names. Review the expected answers before quoting results.",
+  "description": "Assistant retrieval evaluation set (40 buyer questions). Questions 1-5 list product IDs read from the live catalog on 2026-10-17 plus names; questions 6-40 list expected product names, matched case-insensitively at run time so they survive a reseed. Names come from the seed scripts and the live catalog snapshot; the script lists any name it cannot find. Questions are phrased as buyers would ask; most avoid copying product names, but 7 of 40 share 2-3 words with an expected product's name. 28 of 40 accept 2-4 correct products. Review the expected answers before quoting results.",
   "questions": [
     {
       "question": "Lightweight breathable fabric for summer shirts",
@@ -307,5 +307,18 @@
         "Donegal-Style Fleck Tweed"
       ]
     }
-  ]
+  ],
+  "offCatalogueQuestions": {
+    "description": "Things Vastra does not sell. Not scored with the 40 questions above: the script reports how often retrieval still returns products, how many, and how similar the closest one is. Retrieval has no similarity threshold, so it is expected to return products for every one of these.",
+    "questions": [
+      "Genuine leather hides for handbags",
+      "Industrial sewing machines for a garment unit",
+      "Metal zippers and buttons in bulk",
+      "Reactive dyes and printing chemicals",
+      "Ready-made men's shirts for retail",
+      "Polyester sewing thread on cones",
+      "Steel pipes for plumbing",
+      "Fresh vegetables for a restaurant"
+    ]
+  }
 }

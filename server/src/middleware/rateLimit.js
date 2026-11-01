@@ -36,8 +36,9 @@ const registerLimiter = rateLimit({
   message: limitMessage('Too many accounts created from this network. Please try again later.'),
 });
 
-// Every AI call costs real inference quota. Anonymous visitors get a small
-// allowance; signed-in users get more, tracked per account.
+// AI calls use server CPU for embeddings and count against the chat provider's
+// free-tier rate limits. Anonymous visitors get a small allowance; signed-in
+// users get more, tracked per account.
 const aiLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: (req) => (req.user ? 60 : 15),

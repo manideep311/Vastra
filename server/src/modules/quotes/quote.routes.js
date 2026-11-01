@@ -1,7 +1,7 @@
 const express = require('express');
 const validateObjectIdParam = require('../../middleware/validateObjectId');
 const { authenticate, authorize } = require('../../middleware/auth.middleware');
-const { create, getMine, getOne, accept, reject } = require('./quote.controller');
+const { create, getMine, accept, reject } = require('./quote.controller');
 
 const router = express.Router();
 
@@ -11,7 +11,6 @@ router.use(authenticate, authorize('buyer'));
 
 router.post('/', create);
 router.get('/', getMine);
-router.get('/:id', getOne);
 router.patch('/:id/accept', accept);
 router.patch('/:id/reject', reject);
 

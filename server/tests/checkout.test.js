@@ -65,6 +65,28 @@ describe('checkout pricing', () => {
   });
 });
 
+describe('checkout failure after orders are created', () => {
+  test('undoes the orders when the cart cannot be emptied, so a retry does not duplicate them', async () => {
+    const product = await createProduct(supplier, { stock: 1000 });
+    await addItem(product, 100);
+
+    // The first Cart.updateOne is the "empty the cart" step; make it fail once.
+    const clearCart = jest.spyOn(Cart, 'updateOne').mockRejectedValueOnce(new Error('write conflict'));
+    await checkout().expect(500);
+    clearCart.mockRestore();
+
+    expect(await Order.countDocuments({ buyerId: buyer.id })).toBe(0);
+    expect((await Product.findById(product._id).lean()).stock).toBe(1000);
+    const cart = await Cart.findOne({ buyerId: buyer.id }).lean();
+    expect(cart.items).toHaveLength(1);
+    expect(cart.checkoutLockedAt).toBeNull();
+
+    await checkout().expect(201);
+    expect(await Order.countDocuments({ buyerId: buyer.id })).toBe(1);
+    expect((await Product.findById(product._id).lean()).stock).toBe(900);
+  });
+});
+
 describe('checkout concurrency', () => {
   test('simultaneous checkouts of one cart create exactly one order', async () => {
     const product = await createProduct(supplier, { stock: 1000 });

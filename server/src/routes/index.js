@@ -11,7 +11,6 @@ const quoteRoutes = require('../modules/quotes/quote.routes');
 const wishlistRoutes = require('../modules/wishlist/wishlist.routes');
 const reviewRoutes = require('../modules/reviews/review.routes');
 const notificationRoutes = require('../modules/notifications/notification.routes');
-const categoryRoutes = require('../modules/categories/category.routes');
 
 const router = express.Router();
 
@@ -29,6 +28,5 @@ router.use('/quotes', quoteRoutes);
 router.use('/wishlist', wishlistRoutes);
 router.use('/reviews', reviewRoutes);
 router.use('/notifications', notificationRoutes);
-router.use('/categories', categoryRoutes);
 
 module.exports = router;

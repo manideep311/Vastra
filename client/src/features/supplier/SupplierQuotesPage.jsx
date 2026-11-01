@@ -61,7 +61,10 @@ function ResponseForm({ quote, onSubmit, onDecline, onCancel, busy }) {
         requestedQuantity: quote.requestedQuantity,
         targetPrice: quote.targetPrice,
       });
-      if (!result.suggestedPrice && !result.suggestedLeadTime) throw new Error('Empty suggestion');
+      if (!result.suggestedPrice && !result.suggestedLeadTime) {
+        setSuggestion({ status: 'unavailable', note: result.message || '' });
+        return;
+      }
       setForm((f) => ({
         ...f,
         quotedPrice: result.suggestedPrice ? String(result.suggestedPrice) : f.quotedPrice,
@@ -84,7 +87,7 @@ function ResponseForm({ quote, onSubmit, onDecline, onCancel, busy }) {
         </button>
         <p className="text-xs text-muted" aria-live="polite">
           {suggestion.status === 'done' && `Suggestion filled in${suggestion.note ? ` — ${suggestion.note}` : ''}. Review it before sending.`}
-          {suggestion.status === 'unavailable' && 'Suggestions aren’t available right now. Enter your price manually.'}
+          {suggestion.status === 'unavailable' && (suggestion.note || 'Suggestions aren’t available right now. Enter your price manually.')}
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-3">

@@ -27,7 +27,8 @@ connectDB().then(() => {
   });
 
   // Load the embedding model now rather than on the first search. Failure is
-  // logged only: searches fall back to keywords until the model loads.
+  // logged only: until the model loads, AI search and the assistant answer
+  // with keyword matches.
   if (EMBEDDING_PROVIDER === 'local') {
     loadExtractor()
       .then(() => console.log(`Embedding model ready (memory ${rssMb()} MB)`))

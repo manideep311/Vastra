@@ -1,7 +1,9 @@
 // The local provider runs Transformers.js in-process. The library is mocked
 // here so the suite stays fast and offline; the real model is exercised by
 // `npm run model:download` and `npm run eval:assistant`.
-process.env.EMBEDDING_PROVIDER = 'local';
+// The shared setup selects the hosted provider; unset it here so these tests
+// see the real default.
+delete process.env.EMBEDDING_PROVIDER;
 
 const mockExtractor = jest.fn();
 const mockPipeline = jest.fn();
@@ -17,11 +19,11 @@ beforeEach(() => {
 });
 
 describe('local embedding provider', () => {
-  test('is the default provider', () => {
+  test('is used when EMBEDDING_PROVIDER is unset', () => {
     expect(EMBEDDING_PROVIDER).toBe('local');
   });
 
-  test('mean-pools and normalises with the quantized model', async () => {
+  test('requests the quantized model with mean pooling and normalisation, and returns a plain array', async () => {
     mockExtractor.mockResolvedValue({ data: Float32Array.from([0.6, 0.8, 0]) });
 
     const vector = await generateEmbedding('organic cotton twill');
@@ -39,6 +41,12 @@ describe('local embedding provider', () => {
 
     mockExtractor.mockResolvedValue({ data: Float32Array.from([1, 0, 0]) });
     await expect(generateEmbedding('second attempt')).resolves.toHaveLength(3);
+  });
+
+  test('embeds one text per call and refuses a batch', async () => {
+    const { embedLocally } = require('../src/modules/ai/localEmbedder');
+    await expect(embedLocally(['linen', 'denim'])).rejects.toBeInstanceOf(TypeError);
+    expect(mockExtractor).not.toHaveBeenCalled();
   });
 
   test('rejects a vector containing non-finite numbers', async () => {
