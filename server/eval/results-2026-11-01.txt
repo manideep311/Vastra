@@ -1,0 +1,397 @@
+# npm run eval:assistant, run 2026-11-01 against the live catalog (local embedding model).
+# Scored metrics match the 2026-10-17 run in the README; latency and memory vary between runs.
+
+
+Question set: eval\questions.json (40 questions)
+Products with embeddings: 47 of 47
+
+1. Lightweight breathable fabric for summer shirts
+   HIT@3  3954 ms
+     1. Premium Cotton Shirting Fabric (0.673)
+     2. Polyester Mesh Fabric (0.643)
+   * 3. Natural Linen-Cotton Blend (0.614)
+   * 4. Linen Blend Fabric (0.594)
+     5. Premium Combed Cotton Poplin (0.563)
+
+2. Heavy raw selvedge denim for premium jeans
+   HIT@1  99 ms
+   * 1. Raw Selvedge Denim 14oz (0.764)
+   * 2. Denim Fabric (12 Oz) (0.592)
+     3. Classic Stretch Denim 11oz (0.574)
+     4. Stretch Denim 11 oz (0.557)
+     5. Stretch Denim 12oz (0.461)
+
+3. Handloom silk with zari work for bridal sarees
+   HIT@1  102 ms
+   * 1. Kanchipuram Handloom Silk Brocade (0.588)
+     2. Silk Satin Fabric (0.566)
+     3. Mulberry Silk Crepe de Chine 16 Momme (0.489)
+     4. Pure Mulberry Silk Satin (0.486)
+     5. Pure Silk Chiffon (0.464)
+
+4. Absorbent fabric for bath towels
+   HIT@1  104 ms
+   * 1. Terry Towel Fabric (0.791)
+   * 2. Organic Cotton Terry Towel Fabric (0.660)
+     3. Natural Linen-Cotton Blend (0.457)
+     4. Premium Cotton Shirting Fabric (0.422)
+     5. Yarn-Dyed Cotton Chambray (0.420)
+
+5. Water-resistant lining for rain jackets
+   HIT@1  102 ms
+   * 1. Water-Resistant Polyester Taffeta (0.520)
+     2. Polyester Satin Lining (0.510)
+     3. Heavy Wool Winter Coating (0.505)
+     4. Polyester Suiting Fabric (0.460)
+     5. Polyester Mesh Fabric (0.432)
+
+6. Crisp cotton fabric for formal office shirts
+   HIT@1  110 ms
+   * 1. Premium Cotton Shirting Fabric (0.629)
+     2. Combed Cotton Poplin 60s (0.595)
+     3. Poly-Cotton Blend Workwear Fabric (0.586)
+     4. Polyester Suiting Fabric (0.574)
+     5. Natural Linen-Cotton Blend (0.563)
+
+7. Sustainable certified organic cotton for an eco fashion label
+   HIT@1  31 ms
+   * 1. Organic Cotton Fabric (0.748)
+   * 2. GOTS Certified Organic Cotton Twill (0.588)
+     3. Organic Cotton Terry Towel Fabric (0.529)
+     4. Natural Linen-Cotton Blend (0.514)
+     5. Premium Cotton Shirting Fabric (0.469)
+
+8. Soft organic material for newborn baby clothes
+   HIT@1  61 ms
+   * 1. Organic Cotton Fabric (0.690)
+     2. Organic Cotton Terry Towel Fabric (0.564)
+     3. Natural Linen-Cotton Blend (0.551)
+     4. Premium Cotton Shirting Fabric (0.482)
+     5. Linen Blend Fabric (0.448)
+
+9. Shiny luxurious fabric for evening gowns
+   HIT@1  114 ms
+   * 1. Silk Satin Fabric (0.702)
+     2. Natural Linen-Cotton Blend (0.553)
+   * 3. Pure Mulberry Silk Satin (0.549)
+     4. Polyester Satin Lining (0.542)
+     5. Linen Blend Fabric (0.541)
+
+10. Traditional South Indian silk for wedding sarees
+   HIT@1  40 ms
+   * 1. Silk Satin Fabric (0.529)
+   * 2. Kanchipuram Handloom Silk Brocade (0.497)
+     3. Mulberry Silk Crepe de Chine 16 Momme (0.491)
+     4. Pure Silk Chiffon (0.487)
+     5. Linen Blend Fabric (0.465)
+
+11. Fine wool suiting for tailored blazers
+   HIT@2  49 ms
+     1. Wool Blend Herringbone Suiting (0.774)
+   * 2. Merino Wool Blend Suiting (0.673)
+     3. Heavy Wool Winter Coating (0.651)
+   * 4. Herringbone Wool Tweed (0.635)
+   * 5. Polyester Suiting Fabric (0.555)
+
+12. Warm thick material for winter overcoats
+   HIT@1  103 ms
+   * 1. Heavy Wool Winter Coating (0.697)
+     2. Wool Blend Herringbone Suiting (0.472)
+     3. Merino Wool Blend Suiting (0.453)
+     4. Polyester Satin Lining (0.425)
+     5. Merino Wool Flannel (0.413)
+
+13. Denim with stretch for comfortable skinny jeans
+   HIT@3  102 ms
+     1. Classic Stretch Denim 11oz (0.802)
+     2. Stretch Denim 11 oz (0.776)
+   * 3. Stretch Denim 12oz (0.715)
+   * 4. Denim Fabric (12 Oz) (0.617)
+     5. Cotton Lycra Knit Fabric (0.521)
+
+14. Durable fabric for cushion covers and curtains
+   HIT@1  101 ms
+   * 1. Linen-Cotton Blend Upholstery Fabric (0.603)
+     2. Polyester Suiting Fabric (0.511)
+     3. Denim Fabric (12 Oz) (0.508)
+     4. Terry Towel Fabric (0.493)
+     5. Polyester Satin Lining (0.475)
+
+15. Fabric for lining handbags and backpacks
+   HIT@1  113 ms
+   * 1. Polyester Mesh Fabric (0.593)
+     2. Polyester Satin Lining (0.553)
+   * 3. Water-Resistant Polyester Taffeta (0.543)
+     4. Cotton Canvas Duck 12 oz (0.518)
+     5. Denim Fabric (12 Oz) (0.496)
+
+16. Hard-wearing easy-care fabric for factory uniforms
+   HIT@2  30 ms
+     1. Combed Cotton Poplin 60s (0.566)
+   * 2. Poly-Cotton Blend Workwear Fabric (0.549)
+   * 3. Polyester Suiting Fabric (0.537)
+   * 4. Premium Cotton Shirting Fabric (0.486)
+     5. Natural Linen-Cotton Blend (0.464)
+
+17. Plush fabric with a soft pile for luxury drapes
+   HIT@1  32 ms
+   * 1. Premium Cotton Velvet (0.696)
+     2. Soft Cotton Velvet (0.678)
+     3. Pure Silk Chiffon (0.516)
+     4. Natural Linen-Cotton Blend (0.492)
+     5. Merino Wool Blend Suiting (0.487)
+
+18. Ribbed textured fabric for trousers and jackets
+   HIT@1  32 ms
+   * 1. Fine Wale Cotton Corduroy (0.584)
+     2. Wool Blend Herringbone Suiting (0.556)
+     3. Heavy Wool Winter Coating (0.544)
+     4. Herringbone Wool Tweed (0.534)
+     5. Denim Fabric (12 Oz) (0.503)
+
+19. Flowy lightweight fabric for dresses and blouses
+   MISS    32 ms
+     1. Natural Linen-Cotton Blend (0.613)
+     2. Polyester Suiting Fabric (0.611)
+     3. Linen Blend Fabric (0.606)
+     4. Linen-Cotton Blend Upholstery Fabric (0.568)
+     5. Combed Cotton Poplin 60s (0.561)
+
+20. Light denim-look fabric for casual shirts
+   HIT@2  34 ms
+     1. Denim Fabric (12 Oz) (0.646)
+   * 2. Yarn-Dyed Cotton Chambray (0.615)
+     3. Premium Cotton Shirting Fabric (0.604)
+     4. Stretch Denim 11 oz (0.579)
+     5. Classic Stretch Denim 11oz (0.576)
+
+21. Biodegradable natural fibre for shopping bags and sacks
+   HIT@1  37 ms
+   * 1. Natural Woven Jute Fabric (0.663)
+     2. Recycled Polyester Twill (0.516)
+     3. Organic Cotton Fabric (0.437)
+     4. Natural Linen-Cotton Blend (0.422)
+     5. Pure European Flax Linen (0.391)
+
+22. Heavy-duty canvas for tents and tool bags
+   HIT@1  31 ms
+   * 1. Heavy Cotton Canvas Duck (0.697)
+     2. Cotton Canvas Duck 12 oz (0.651)
+     3. Denim Fabric (12 Oz) (0.463)
+     4. Polyester Mesh Fabric (0.460)
+     5. Heavy Wool Winter Coating (0.406)
+
+23. Classic tweed for flat caps and heritage jackets
+   HIT@1  29 ms
+   * 1. Herringbone Wool Tweed (0.747)
+   * 2. Donegal-Style Fleck Tweed (0.578)
+     3. Wool Blend Herringbone Suiting (0.434)
+     4. Fine Wale Cotton Corduroy (0.428)
+     5. Heavy Wool Winter Coating (0.384)
+
+24. Wool fabric with colourful flecks
+   HIT@2  32 ms
+     1. Merino Wool Flannel (0.622)
+   * 2. Donegal-Style Fleck Tweed (0.618)
+     3. Wool Blend Herringbone Suiting (0.599)
+     4. Heavy Wool Winter Coating (0.583)
+     5. Premium Cotton Velvet (0.569)
+
+25. Stretchy knit for T-shirts and leggings
+   HIT@1  34 ms
+   * 1. Cotton Lycra Knit Fabric (0.839)
+     2. Stretch Denim 11 oz (0.581)
+     3. Stretch Denim 12oz (0.535)
+     4. Classic Stretch Denim 11oz (0.523)
+     5. Yarn-Dyed Cotton Chambray (0.482)
+
+26. Activewear fabric with good stretch recovery
+   HIT@1  37 ms
+   * 1. Cotton Lycra Knit Fabric (0.686)
+     2. Classic Stretch Denim 11oz (0.611)
+     3. Stretch Denim 11 oz (0.604)
+   * 4. Stretch Denim 12oz (0.581)
+     5. Poly-Cotton Blend Workwear Fabric (0.527)
+
+27. Wrinkle-free fabric for office trousers
+   HIT@1  35 ms
+   * 1. Polyester Suiting Fabric (0.719)
+     2. Cotton Lycra Knit Fabric (0.523)
+     3. Poly-Cotton Blend Workwear Fabric (0.495)
+     4. Wool Blend Herringbone Suiting (0.479)
+     5. Yarn-Dyed Gingham Check Shirting (0.462)
+
+28. Printed fabric for kurtis and ethnic wear
+   HIT@1  34 ms
+   * 1. Rayon Printed Fabric (0.702)
+     2. Printed Viscose Rayon Challis (0.519)
+   * 3. Linen Blend Fabric (0.502)
+     4. Pure Linen Slub 44s (0.474)
+     5. Combed Cotton Poplin 60s (0.449)
+
+29. Light fabric for summer kurtas
+   HIT@1  31 ms
+   * 1. Linen Blend Fabric (0.658)
+   * 2. Pure Linen Slub 44s (0.506)
+   * 3. Rayon Printed Fabric (0.505)
+     4. Silk Satin Fabric (0.487)
+     5. Natural Linen-Cotton Blend (0.473)
+
+30. Fabric for hotel bathrobes
+   HIT@1  32 ms
+   * 1. Terry Towel Fabric (0.696)
+     2. Linen-Cotton Blend Upholstery Fabric (0.543)
+     3. Natural Linen-Cotton Blend (0.538)
+     4. Silk Satin Fabric (0.523)
+     5. Polyester Suiting Fabric (0.505)
+
+31. Breathable mesh for sports jerseys and caps
+   HIT@1  29 ms
+   * 1. Polyester Mesh Fabric (0.732)
+     2. Combed Cotton Poplin 60s (0.448)
+     3. Premium Cotton Shirting Fabric (0.448)
+     4. Premium Combed Cotton Poplin (0.411)
+     5. Premium Combed Cotton Poplin (0.389)
+
+32. Satin for bridal lehengas
+   HIT@1  29 ms
+   * 1. Silk Satin Fabric (0.664)
+   * 2. Pure Mulberry Silk Satin (0.573)
+     3. Polyester Satin Lining (0.410)
+     4. Mulberry Silk Crepe de Chine 16 Momme (0.384)
+     5. Pure Silk Chiffon (0.346)
+
+33. Outdoor gear fabric that sheds light rain
+   MISS    31 ms
+     1. Heavy Wool Winter Coating (0.471)
+     2. Polyester Suiting Fabric (0.462)
+     3. Polyester Mesh Fabric (0.457)
+     4. Denim Fabric (12 Oz) (0.456)
+     5. Polyester Satin Lining (0.429)
+
+34. Eco-friendly material for rustic home decor
+   HIT@1  36 ms
+   * 1. Linen-Cotton Blend Upholstery Fabric (0.484)
+   * 2. Natural Woven Jute Fabric (0.458)
+     3. Linen Blend Fabric (0.436)
+   * 4. Natural Linen-Cotton Blend (0.423)
+     5. Organic Cotton Fabric (0.406)
+
+35. Shuttle-loom denim with vintage character
+   HIT@1  35 ms
+   * 1. Raw Selvedge Denim 14oz (0.631)
+     2. Classic Stretch Denim 11oz (0.515)
+     3. Denim Fabric (12 Oz) (0.496)
+     4. Stretch Denim 11 oz (0.466)
+     5. Yarn-Dyed Cotton Chambray (0.454)
+
+36. Easy-to-dye cotton with low shrinkage
+   HIT@3  47 ms
+     1. Yarn-Dyed Cotton Chambray (0.562)
+     2. Combed Cotton Poplin 60s (0.545)
+   * 3. Premium Combed Cotton Poplin (0.516)
+     4. Stretch Denim 11 oz (0.512)
+     5. Natural Linen-Cotton Blend (0.512)
+
+37. Cotton fabric that keeps its colour after many washes
+   HIT@2  32 ms
+     1. Yarn-Dyed Gingham Check Shirting (0.656)
+   * 2. Yarn-Dyed Cotton Chambray (0.549)
+     3. Natural Linen-Cotton Blend (0.532)
+     4. Terry Towel Fabric (0.519)
+     5. Combed Cotton Poplin 60s (0.506)
+
+38. Textured linen for loose-fit resort wear
+   HIT@2  29 ms
+     1. Natural Linen-Cotton Blend (0.620)
+   * 2. Linen Blend Fabric (0.610)
+   * 3. Pure European Flax Linen (0.589)
+     4. Linen-Cotton Blend Upholstery Fabric (0.531)
+   * 5. Pure Linen Slub 44s (0.520)
+
+39. Corduroy for kids' winter pants
+   HIT@1  28 ms
+   * 1. Fine Wale Cotton Corduroy (0.601)
+     2. Heavy Wool Winter Coating (0.420)
+     3. Polyester Suiting Fabric (0.416)
+     4. Combed Cotton Poplin 60s (0.385)
+     5. Polyester Satin Lining (0.367)
+
+40. Insulating fabric for outerwear in cold climates
+   HIT@1  41 ms
+   * 1. Heavy Wool Winter Coating (0.606)
+     2. Polyester Suiting Fabric (0.527)
+     3. Polyester Mesh Fabric (0.471)
+     4. Wool Blend Herringbone Suiting (0.439)
+     5. Poly-Cotton Blend Workwear Fabric (0.428)
+
+Summary
+  Embedding provider: local
+  Products with embeddings: 47/47
+  Retrieval latency: average 150 ms, median 35 ms, p95 113 ms (n=40)
+  Scored questions: 40
+  hit@1: 73%   hit@5: 95%   MRR@5: 0.825
+  Process memory (RSS): 169 MB
+
+Off-catalogue check (8 questions, not scored)
+
+1. Genuine leather hides for handbags
+     1. Polyester Mesh Fabric (0.330)
+     2. Water-Resistant Polyester Taffeta (0.309)
+     3. Recycled Polyester Twill (0.306)
+     4. Raw Selvedge Denim 14oz (0.295)
+     5. Herringbone Wool Tweed (0.284)
+
+2. Industrial sewing machines for a garment unit
+     1. Poly-Cotton Blend Workwear Fabric (0.453)
+     2. Merino Wool Blend Suiting (0.362)
+     3. Combed Cotton Poplin 60s (0.360)
+     4. Raw Selvedge Denim 14oz (0.356)
+     5. Denim Fabric (12 Oz) (0.335)
+
+3. Metal zippers and buttons in bulk
+     1. Fine Wale Cotton Corduroy (0.312)
+     2. Recycled Polyester Twill (0.306)
+     3. Denim Fabric (12 Oz) (0.305)
+     4. Polyester Satin Lining (0.303)
+     5. Heavy Cotton Canvas Duck (0.299)
+
+4. Reactive dyes and printing chemicals
+     1. Yarn-Dyed Gingham Check Shirting (0.328)
+     2. Rayon Printed Fabric (0.298)
+     3. Printed Viscose Rayon Challis (0.282)
+     4. Combed Cotton Poplin 60s (0.256)
+     5. Water-Resistant Polyester Taffeta (0.222)
+
+5. Ready-made men's shirts for retail
+     1. Combed Cotton Poplin 60s (0.360)
+     2. Premium Cotton Shirting Fabric (0.345)
+     3. Wool Blend Herringbone Suiting (0.335)
+     4. Yarn-Dyed Gingham Check Shirting (0.325)
+     5. Polyester Suiting Fabric (0.324)
+
+6. Polyester sewing thread on cones
+     1. Polyester Suiting Fabric (0.407)
+     2. Poly-Cotton Blend Workwear Fabric (0.381)
+     3. Polyester Mesh Fabric (0.375)
+     4. Polyester Satin Lining (0.347)
+     5. Yarn-Dyed Gingham Check Shirting (0.318)
+
+7. Steel pipes for plumbing
+     1. Herringbone Wool Tweed (0.130)
+     2. Wool Blend Herringbone Suiting (0.091)
+     3. Water-Resistant Polyester Taffeta (0.073)
+     4. Merino Wool Blend Suiting (0.071)
+     5. Polyester Mesh Fabric (0.062)
+
+8. Fresh vegetables for a restaurant
+     1. Kanchipuram Handloom Silk Brocade (0.138)
+     2. Organic Cotton Fabric (0.129)
+     3. Raw Selvedge Denim 14oz (0.123)
+     4. Natural Woven Jute Fabric (0.114)
+     5. Organic Cotton Terry Towel Fabric (0.087)
+
+Off-catalogue summary
+  Questions answered with products: 8/8
+  Products returned per question: average 5.0, max 5
+  Similarity of the closest product: average 0.307, highest 0.453

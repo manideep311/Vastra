@@ -196,13 +196,13 @@ How to read these:
 - **Small catalog.** With 47 products, a top-5 list covers about a tenth of the catalog, so hit@5 is the easier metric. hit@1 and MRR say more about ranking quality.
 - **Hand-written labels.** The questions and expected answers were written by hand from the catalog, so the scores reflect that judgement. Most questions avoid copying product names; 7 of 40 share 2–3 words with the expected product's name.
 - **Lenient matching.** 28 of the 40 questions accept 2–4 correct products, and any of them counts as a hit, so hit@k is lenient.
-- **Not reproducible from the seeds.** The 47-product live catalog can't be rebuilt from the seed scripts (some products were added through the app), so these numbers come from that live data. The full output of this run is meant to go in [`server/eval/results-2026-10-17.txt`](server/eval/results-2026-10-17.txt).
+- **Not reproducible from the seeds.** The 47-product live catalog can't be rebuilt from the seed scripts (some products were added through the app), so these numbers come from that live data. A re-run on 1 November 2026 gave the same scores; its full output is in [`server/eval/results-2026-11-01.txt`](server/eval/results-2026-11-01.txt).
 - **Latency.** The average includes the first question, which also loads the model and builds the vector index.
 
 ## Known limitations
 
 - **Linear-scan retrieval.** Every product vector is held in memory and compared on each query. That is fine for a catalog of this size, but a larger catalog would need a vector index (for example, MongoDB Atlas Vector Search).
-- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand. The eval's off-catalogue check (8 questions about things Vastra doesn't sell, such as leather or sewing machines) shows this: on a copy of the live catalog, all 8 still returned 5 products each.
+- **No similarity threshold.** Retrieval always returns the top 5, even when they're only loosely related. The prompt asks the model to say when nothing fits, but nothing filters weak matches beforehand. The eval's off-catalogue check (8 questions about things Vastra doesn't sell, such as leather or sewing machines) shows this: on the live catalog, all 8 still returned 5 products each.
 - **Only the latest message drives retrieval.** Earlier turns are sent to the chat model (up to 10), but they don't influence which products are retrieved, so follow-ups like "a cheaper one" can pull in unrelated products.
 - **Free-tier chat limits.** The chat model runs on a provider's free tier, so heavy use can hit its rate limits. When that happens the assistant falls back to keyword matches until the limit resets.
 - **Model in server memory.** The embedding model adds roughly 60 MB to the API process. In local measurements the server peaked around 210 MB while serving AI searches, within Render's 512 MB free tier but not negligible.
